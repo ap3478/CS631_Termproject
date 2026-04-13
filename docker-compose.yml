@@ -56,8 +56,8 @@ services:
         condition: service_healthy
 
     environment:
-      PGADMIN_DEFAULT_EMAIL:    admin@bankingdb.local
-      PGADMIN_DEFAULT_PASSWORD: pgAdmin$ecure123
+      PGADMIN_DEFAULT_EMAIL:    admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_CONFIG_SERVER_MODE: "False"        # single-user mode (no login page)
 
     ports:

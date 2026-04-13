@@ -134,29 +134,62 @@ def compose_ps():
     compose_cmd("ps")
 
 
-def get_service_health():
-    """Return the health status string of the bankingdb service."""
-    result = compose_cmd(
-        "ps", "--format", "json",
-        capture=True
+def get_container_state():
+    """
+    Return the state of the BankingDB container as a string:
+    'running', 'exited', 'paused', 'not_found', or 'unknown'.
+    Uses 'docker inspect' which works regardless of compose version.
+    """
+    result = subprocess.run(
+        ["docker", "inspect", "--format", "{{.State.Status}}", "BankingDB"],
+        capture_output=True, text=True
     )
     if result.returncode != 0:
-        return "unknown"
-    import json
-    try:
-        services = json.loads(result.stdout)
-        # docker compose ps --format json may return a list or newline-delimited objects
-        if isinstance(services, dict):
-            services = [services]
-        elif isinstance(services, str):
-            services = [json.loads(l) for l in services.strip().splitlines() if l]
-        for svc in services:
-            name = svc.get("Service") or svc.get("Name") or ""
-            if "bankingdb" in name.lower():
-                return svc.get("Health", svc.get("Status", "unknown"))
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return "unknown"
+        # Non-zero exit means the container doesn't exist
+        return "not_found"
+    return result.stdout.strip().lower() or "unknown"
+
+
+def is_running():
+    """Return True if the BankingDB container is already running."""
+    return get_container_state() == "running"
+
+
+def compose_up():
+    """
+    Start services via docker compose up -d.
+    If the container is already running, log a notice and skip
+    rather than propagating the Docker HTTP 304 error.
+    """
+    state = get_container_state()
+
+    if state == "running":
+        log("Container 'BankingDB' is already running — skipping compose up.", "WARN")
+        log("Use --reset to tear down and redeploy, or --schema-only to re-run schema.", "INFO")
+        return
+
+    if state == "exited":
+        log("Container 'BankingDB' exists but is stopped — restarting…", "WARN")
+
+    log("Running: docker compose up -d --pull missing …", "STEP")
+    result = compose_cmd("up", "-d", "--pull", "missing", capture=True)
+
+    # HTTP 304 / "already started" is not a real failure — treat it as OK
+    already_started = (
+        "304" in result.stderr or
+        "already started" in result.stderr.lower() or
+        "already started" in result.stdout.lower()
+    )
+
+    if result.returncode != 0 and not already_started:
+        log("docker compose up failed.", "ERROR")
+        log(result.stderr.strip() or result.stdout.strip(), "ERROR")
+        sys.exit(1)
+
+    if already_started:
+        log("Container was already started (HTTP 304) — continuing.", "WARN")
+    else:
+        log("Compose services started.", "OK")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -737,7 +770,7 @@ def print_connection_info():
     print(f"  │    {pg_url}")
     print(  "  ├──────────────────────────────────────────────────────────┤")
     print(  "  │  pgAdmin UI    : http://localhost:5050                    │")
-    print(  "  │  pgAdmin login : admin@bankingdb.local / pgAdmin$ecure123 │")
+    print(  "  │  pgAdmin login : admin@example.com / admin               │")
     print(  "  └──────────────────────────────────────────────────────────┘")
     print()
 
@@ -803,7 +836,15 @@ def main():
         log("Existing stack and volumes removed.", "OK")
 
     section("Step 1: docker compose up")
-    compose_up()
+
+    # Detect already-running container before calling compose up
+    state = get_container_state()
+    if state == "running" and not args.reset:
+        log("Container 'BankingDB' is already running.", "WARN")
+        log("Skipping 'docker compose up' to avoid HTTP 304 error.", "INFO")
+        log("Tip: run with --reset to tear down and redeploy from scratch.", "INFO")
+    else:
+        compose_up()
 
     section("Step 2: Waiting for PostgreSQL to be Ready")
     wait_for_postgres()

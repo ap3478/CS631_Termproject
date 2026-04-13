@@ -42,5 +42,5 @@ psql: `psql -h localhost -p 5433 -U bankadmin bankingdb`
 
 ## pgAdmin
 
-Open http://localhost:5050 — login: `admin@bankingdb.local` / `pgAdmin$ecure123`
+Open http://localhost:5050 — login: `admin@example.com` / `admin`
 The BankingDB server is pre-configured; enter the password `BankDB$ecure123` when prompted.
