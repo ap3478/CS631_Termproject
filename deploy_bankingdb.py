@@ -20,6 +20,7 @@ Usage:
 """
 
 import argparse
+import socket
 import subprocess
 import sys
 import time
@@ -47,7 +48,7 @@ CONFIG = {
     "db_name":       "bankingdb",
     "db_user":       "bankadmin",
     "db_password":   "BankDB$ecure123",
-    "max_wait_secs": 90,
+    "max_wait_secs": 120,         # increased from 90 — first-run image init can be slow
 }
 
 
@@ -207,45 +208,156 @@ def compose_up():
 # POSTGRES CONNECTION
 # ══════════════════════════════════════════════════════════════════
 
+def _container_logs(tail=20):
+    """Return the last N lines of the BankingDB container log."""
+    result = subprocess.run(
+        ["docker", "logs", "--tail", str(tail), "BankingDB"],
+        capture_output=True, text=True
+    )
+    return (result.stdout + result.stderr).strip()
+
+
+def _port_open(host, port, timeout=2):
+    """Return True if a TCP connection to host:port succeeds."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _diagnose():
+    """
+    Print a structured diagnosis when PostgreSQL cannot be reached.
+    Checks container state, port binding, and recent logs.
+    """
+    print()
+    print("  ── Diagnosis ────────────────────────────────────────────")
+
+    # 1. Container state
+    state = get_container_state()
+    log(f"Container state : {state}", "INFO")
+
+    if state == "not_found":
+        log("Container 'BankingDB' does not exist.", "ERROR")
+        log("Run the script without flags to create it.", "WARN")
+        return
+
+    # 2. Port reachability
+    cfg = CONFIG
+    port_ok = _port_open(cfg["db_host"], cfg["db_port"])
+    if port_ok:
+        log(f"Port {cfg['db_port']} is open — PostgreSQL process is listening.", "OK")
+        log("The port is reachable but authentication failed or DB not ready.", "WARN")
+        log(f"Check credentials: user={cfg['db_user']}  db={cfg['db_name']}", "WARN")
+    else:
+        log(f"Port {cfg['db_port']} is NOT reachable on {cfg['db_host']}.", "ERROR")
+        log("Possible causes:", "WARN")
+        log("  • Container is still initialising (try again in ~15 seconds)", "WARN")
+        log(f"  • Port {cfg['db_port']} is already used by another process on your machine", "WARN")
+        log("  • docker-compose.yml port mapping is incorrect", "WARN")
+
+    # 3. Recent container logs
+    print()
+    log("Last 25 lines of container log:", "INFO")
+    print("  " + "─" * 56)
+    logs = _container_logs(tail=25)
+    for line in logs.splitlines():
+        print(f"  {line}")
+    print("  " + "─" * 56)
+
+    # 4. Port conflict check
+    if not port_ok:
+        result = subprocess.run(
+            ["lsof", "-i", f":{cfg['db_port']}"],
+            capture_output=True, text=True
+        )
+        if result.stdout.strip():
+            print()
+            log(f"Process(es) already using port {cfg['db_port']}:", "WARN")
+            for line in result.stdout.strip().splitlines():
+                print(f"  {line}")
+            log(f"Change 'host_port' in CONFIG to a free port and update docker-compose.yml.", "WARN")
+
+    print()
+
+
 def wait_for_postgres():
-    """Poll until PostgreSQL accepts connections (respects healthcheck)."""
-    log("Waiting for PostgreSQL to be ready …", "STEP")
-    cfg    = CONFIG
-    start  = time.time()
+    """
+    Poll until PostgreSQL accepts connections.
+    Shows live container state, captures the actual error message on failure,
+    and runs full diagnostics before exiting.
+    """
+    cfg     = CONFIG
+    start   = time.time()
     attempt = 0
+    last_err = ""
+    last_state_log = 0
+
+    log(f"Waiting up to {cfg['max_wait_secs']}s for PostgreSQL on "
+        f"{cfg['db_host']}:{cfg['db_port']} …", "STEP")
+
     while time.time() - start < cfg["max_wait_secs"]:
         attempt += 1
+        elapsed = int(time.time() - start)
+
+        # Log container state every 15 s so the user can see it's progressing
+        if elapsed - last_state_log >= 15:
+            state = get_container_state()
+            print(f"\r    [{elapsed:3d}s]  Container: {state:<12}  attempt {attempt} …", end="", flush=True)
+            last_state_log = elapsed
+
+            # If container crashed, bail early — no point waiting
+            if state in ("exited", "dead", "not_found"):
+                print()
+                log(f"Container stopped unexpectedly (state: {state}).", "ERROR")
+                _diagnose()
+                sys.exit(1)
+
         try:
             conn = psycopg2.connect(
-                host     = cfg["db_host"],
-                port     = cfg["db_port"],
-                dbname   = cfg["db_name"],
-                user     = cfg["db_user"],
-                password = cfg["db_password"],
+                host            = cfg["db_host"],
+                port            = cfg["db_port"],
+                dbname          = cfg["db_name"],
+                user            = cfg["db_user"],
+                password        = cfg["db_password"],
                 connect_timeout = 3,
             )
             conn.close()
+            print()   # clear the progress line
             elapsed = round(time.time() - start, 1)
             log(f"PostgreSQL ready after {elapsed}s ({attempt} attempt(s)).", "OK")
             return
-        except psycopg2.OperationalError:
-            print(f"    Attempt {attempt}: not ready yet …", end="\r")
+
+        except psycopg2.OperationalError as e:
+            last_err = str(e).strip().splitlines()[0]   # keep first line only
+            print(f"\r    [{elapsed:3d}s]  Not ready ({last_err[:60]}) …", end="", flush=True)
             time.sleep(3)
 
-    log("Timed out waiting for PostgreSQL to start.", "ERROR")
-    log("Check container logs with:  docker compose logs bankingdb", "WARN")
+    # ── Timeout ──────────────────────────────────────────────────
+    print()
+    log(f"Timed out after {cfg['max_wait_secs']}s waiting for PostgreSQL.", "ERROR")
+    if last_err:
+        log(f"Last error: {last_err}", "ERROR")
+    _diagnose()
     sys.exit(1)
 
 
 def get_connection():
     cfg = CONFIG
-    return psycopg2.connect(
-        host     = cfg["db_host"],
-        port     = cfg["db_port"],
-        dbname   = cfg["db_name"],
-        user     = cfg["db_user"],
-        password = cfg["db_password"],
-    )
+    try:
+        return psycopg2.connect(
+            host     = cfg["db_host"],
+            port     = cfg["db_port"],
+            dbname   = cfg["db_name"],
+            user     = cfg["db_user"],
+            password = cfg["db_password"],
+        )
+    except psycopg2.OperationalError as e:
+        log(f"Cannot connect to database: {e}", "ERROR")
+        _diagnose()
+        sys.exit(1)
+
 
 
 # ══════════════════════════════════════════════════════════════════
