@@ -66,6 +66,15 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./pgadmin_servers.json:/pgadmin4/servers.json:ro   # pre-configured server entry
+      - ./pgpass:/pgpass                                    # password file for auto-login
+
+    # Fix pgpass file permissions (must be 0600) before pgAdmin starts
+    entrypoint: >
+      /bin/sh -c "
+        chmod 600 /pgpass &&
+        chown pgadmin:pgadmin /pgpass &&
+        /entrypoint.sh
+      "
 
     networks:
       - banking_net

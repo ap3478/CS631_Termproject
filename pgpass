@@ -1,0 +1,4 @@
+
+# pgpass format: hostname:port:database:username:password
+# The * wildcard matches any database on that host
+bankingdb:5432:*:bankadmin:BankDB$ecure123

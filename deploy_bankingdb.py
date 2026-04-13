@@ -98,13 +98,24 @@ def compose_cmd(*args, capture=False):
 
 
 def check_compose_file():
-    """Abort if docker-compose.yml is missing."""
+    """Abort if docker-compose.yml is missing. Also ensure pgpass exists."""
     cf = CONFIG["compose_file"]
     if not cf.exists():
         log(f"docker-compose.yml not found at: {cf}", "ERROR")
         log("Run this script from the project directory.", "WARN")
         sys.exit(1)
     log(f"docker-compose.yml found: {cf}", "OK")
+
+    # Ensure pgpass exists alongside docker-compose.yml
+    pgpass = cf.parent / "pgpass"
+    if not pgpass.exists():
+        pgpass.write_text(
+            "# pgpass: hostname:port:database:username:password\n"
+            "bankingdb:5432:*:bankadmin:BankDB$ecure123\n"
+        )
+        log(f"Created pgpass file: {pgpass}", "OK")
+    else:
+        log(f"pgpass file found: {pgpass}", "OK")
 
 
 def compose_up():
