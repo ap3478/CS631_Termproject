@@ -35,12 +35,11 @@ python deploy_bankingdb.py
 | Host     | localhost |
 | Port     | 5433 |
 | Database | bankingdb |
-| User     | bankadmin |
-| Password | BankDB$ecure123 |
+
 
 psql: `psql -h localhost -p 5433 -U bankadmin bankingdb`
 
 ## pgAdmin
 
-Open http://localhost:5050 — login: `admin@example.com` / `admin`
-The BankingDB server is pre-configured; enter the password `BankDB$ecure123` when prompted.
+Open http://localhost:5050 — login: 
+The BankingDB server is pre-configured; 

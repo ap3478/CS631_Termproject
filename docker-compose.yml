@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB:       bankingdb
       POSTGRES_USER:     bankadmin
-      POSTGRES_PASSWORD: BankDB$ecure123
+      POSTGRES_PASSWORD: BankDBSecure123
 
     ports:
       - "5433:5432"         # host:container  (use 5433 to avoid clashing with a local postgres)
@@ -68,11 +68,11 @@ services:
       - ./pgadmin_servers.json:/pgadmin4/servers.json:ro   # pre-configured server entry
       - ./pgpass:/pgpass                                    # password file for auto-login
 
-    # Fix pgpass file permissions (must be 0600) before pgAdmin starts
+    # pgpass must be owned by UID 5050 (pgAdmin's user) and mode 0600
     entrypoint: >
       /bin/sh -c "
         chmod 600 /pgpass &&
-        chown pgadmin:pgadmin /pgpass &&
+        chown 5050:5050 /pgpass &&
         /entrypoint.sh
       "
 

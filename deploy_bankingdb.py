@@ -47,7 +47,7 @@ CONFIG = {
     "db_port":       5433,
     "db_name":       "bankingdb",
     "db_user":       "bankadmin",
-    "db_password":   "BankDB$ecure123",
+    "db_password":   "BankDBSecure123",
     "max_wait_secs": 120,         # increased from 90 — first-run image init can be slow
 }
 
@@ -112,7 +112,7 @@ def check_compose_file():
     if not pgpass.exists():
         pgpass.write_text(
             "# pgpass: hostname:port:database:username:password\n"
-            "bankingdb:5432:*:bankadmin:BankDB$ecure123\n"
+            "bankingdb:5432:*:bankadmin:BankDBSecure123\n"
         )
         log(f"Created pgpass file: {pgpass}", "OK")
     else:
@@ -282,15 +282,48 @@ def _diagnose():
     print()
 
 
+def _is_auth_failure(err_str):
+    """Return True if the error is definitely a password/auth problem."""
+    markers = [
+        "password authentication failed",
+        "pg_hba.conf",
+        "authentication failed",
+        "role \"bankadmin\" does not exist",
+    ]
+    return any(m in err_str.lower() for m in markers)
+
+
+def _prompt_reset():
+    """
+    Ask the user if they want to wipe the volume and redeploy.
+    Returns True if they agree.
+    """
+    print()
+    print("  ┌─────────────────────────────────────────────────────────┐")
+    print("  │  The PostgreSQL data volume was initialised with a      │")
+    print("  │  different password on a previous run.                  │")
+    print("  │                                                         │")
+    print("  │  Fix: wipe the volume and redeploy (all data lost).     │")
+    print("  │                                                         │")
+    print("  │  Run:  python deploy_bankingdb.py --reset               │")
+    print("  └─────────────────────────────────────────────────────────┘")
+    print()
+    try:
+        answer = input("  Auto-reset now? This deletes all existing data. [y/N] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        answer = "n"
+    return answer == "y"
+
+
 def wait_for_postgres():
     """
     Poll until PostgreSQL accepts connections.
     Shows live container state, captures the actual error message on failure,
     and runs full diagnostics before exiting.
     """
-    cfg     = CONFIG
-    start   = time.time()
-    attempt = 0
+    cfg      = CONFIG
+    start    = time.time()
+    attempt  = 0
     last_err = ""
     last_state_log = 0
 
@@ -304,7 +337,8 @@ def wait_for_postgres():
         # Log container state every 15 s so the user can see it's progressing
         if elapsed - last_state_log >= 15:
             state = get_container_state()
-            print(f"\r    [{elapsed:3d}s]  Container: {state:<12}  attempt {attempt} …", end="", flush=True)
+            print(f"\r    [{elapsed:3d}s]  Container: {state:<12}  attempt {attempt} …",
+                  end="", flush=True)
             last_state_log = elapsed
 
             # If container crashed, bail early — no point waiting
@@ -330,8 +364,36 @@ def wait_for_postgres():
             return
 
         except psycopg2.OperationalError as e:
-            last_err = str(e).strip().splitlines()[0]   # keep first line only
-            print(f"\r    [{elapsed:3d}s]  Not ready ({last_err[:60]}) …", end="", flush=True)
+            last_err = str(e).strip().splitlines()[0]
+
+            # ── Detect stale-volume password mismatch immediately ──────
+            # No point waiting 120 s — the error will never go away on its own.
+            if _is_auth_failure(last_err):
+                print()
+                log("Authentication failed — stale volume detected.", "ERROR")
+                log(f"Error: {last_err}", "ERROR")
+                log("The data volume was initialised with a different password.", "WARN")
+
+                if _prompt_reset():
+                    print()
+                    section("Auto-Reset: Wiping Volume and Redeploying")
+                    compose_down(volumes=True)
+                    compose_up()
+                    # Restart the wait from scratch
+                    start          = time.time()
+                    attempt        = 0
+                    last_err       = ""
+                    last_state_log = 0
+                    log(f"Waiting up to {cfg['max_wait_secs']}s for fresh PostgreSQL …", "STEP")
+                    continue
+                else:
+                    print()
+                    log("Manual fix: run  python deploy_bankingdb.py --reset", "WARN")
+                    sys.exit(1)
+            # ──────────────────────────────────────────────────────────
+
+            print(f"\r    [{elapsed:3d}s]  Not ready ({last_err[:60]}) …",
+                  end="", flush=True)
             time.sleep(3)
 
     # ── Timeout ──────────────────────────────────────────────────
