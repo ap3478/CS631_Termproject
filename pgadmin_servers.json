@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name":            "BankingDB (local)",
+      "Group":           "Servers",
+      "Host":            "bankingdb",
+      "Port":            5432,
+      "MaintenanceDB":   "bankingdb",
+      "Username":        "bankadmin",
+      "SSLMode":         "prefer",
+      "PassFile":        "/pgpass",
+      "Comment":         "Banking Database — PostgreSQL 16 (auto-configured)"
+    }
+  }
+}

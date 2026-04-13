@@ -1,0 +1,91 @@
+version: "3.9"
+
+# ================================================================
+# BankingDB — Docker Compose
+# ================================================================
+# Usage:
+#   docker compose up -d          # start in background
+#   docker compose down           # stop and remove containers
+#   docker compose down -v        # also wipe the data volume
+#   docker compose logs -f        # tail logs
+# ================================================================
+
+services:
+
+  bankingdb:
+    image: postgres:16
+    container_name: BankingDB
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB:       bankingdb
+      POSTGRES_USER:     bankadmin
+      POSTGRES_PASSWORD: BankDB$ecure123
+
+    ports:
+      - "5433:5432"         # host:container  (use 5433 to avoid clashing with a local postgres)
+
+    volumes:
+      - bankingdb_data:/var/lib/postgresql/data          # persistent data volume
+      - ./init:/docker-entrypoint-initdb.d:ro            # optional: auto-run *.sql on first start
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bankadmin -d bankingdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    labels:
+      project:     "BankingDB"
+      description: "Banking Database — PostgreSQL 16"
+      managed_by:  "docker-compose + deploy_bankingdb.py"
+
+    networks:
+      - banking_net
+
+# ----------------------------------------------------------------
+# pgAdmin (optional web UI — comment out if not needed)
+# ----------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: BankingDB_pgAdmin
+    restart: unless-stopped
+    depends_on:
+      bankingdb:
+        condition: service_healthy
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@bankingdb.local
+      PGADMIN_DEFAULT_PASSWORD: pgAdmin$ecure123
+      PGADMIN_CONFIG_SERVER_MODE: "False"        # single-user mode (no login page)
+
+    ports:
+      - "5050:80"             # open http://localhost:5050
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin_servers.json:/pgadmin4/servers.json:ro   # pre-configured server entry
+
+    networks:
+      - banking_net
+
+# ----------------------------------------------------------------
+# Volumes
+# ----------------------------------------------------------------
+volumes:
+  bankingdb_data:
+    driver: local
+    labels:
+      description: "BankingDB PostgreSQL 16 persistent data"
+
+  pgadmin_data:
+    driver: local
+
+# ----------------------------------------------------------------
+# Networks
+# ----------------------------------------------------------------
+networks:
+  banking_net:
+    driver: bridge
+    name:   banking_net

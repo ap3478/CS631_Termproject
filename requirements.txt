@@ -1,0 +1,13 @@
+# ================================================================
+# BankingDB — Python Requirements
+# ================================================================
+# Install with:  pip install -r requirements.txt
+#
+# All other imports used by deploy_bankingdb.py (argparse, subprocess,
+# sys, textwrap, time, pathlib, datetime) are part of the Python
+# standard library and require no separate installation.
+# ================================================================
+
+# PostgreSQL adapter — connects deploy_bankingdb.py to the database
+# Use psycopg2-binary (pre-compiled wheels, no libpq build needed)
+psycopg2-binary>=2.9.9
