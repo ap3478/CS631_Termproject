@@ -11,3 +11,4 @@
 # PostgreSQL adapter — connects deploy_bankingdb.py to the database
 # Use psycopg2-binary (pre-compiled wheels, no libpq build needed)
 psycopg2-binary>=2.9.9
+Flask>=3.0.0

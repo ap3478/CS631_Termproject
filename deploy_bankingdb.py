@@ -536,6 +536,7 @@ DDL_STATEMENTS = [
          city                VARCHAR(60)  NOT NULL,
          state               CHAR(2)      NOT NULL,
          zip_code            CHAR(10)     NOT NULL,
+         phone_number        VARCHAR(20),
          branch_id           INTEGER
                                  REFERENCES Branch(branch_id) ON UPDATE CASCADE,
          personal_banker_ssn CHAR(11)
@@ -738,18 +739,18 @@ SEED_DATA = {
         "sql": """
             INSERT INTO Customer
                 (ssn, first_name, last_name, apt_no, street_no, street_name,
-                 city, state, zip_code, branch_id, personal_banker_ssn)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 city, state, zip_code, phone_number, branch_id, personal_banker_ssn)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         "rows": [
-            ("101-01-0001", "Nancy",  "Green",  "4A",  "88",  "Park Avenue",      "New York",    "NY", "10016", 1, "999-00-1111"),
-            ("202-02-0002", "Oscar",  "Brown",  None,  "240", "Lakeshore Drive",  "Chicago",     "IL", "60614", 3, "666-77-8888"),
-            ("303-03-0003", "Paula",  "White",  "12B", "55",  "Sunset Boulevard", "Los Angeles", "CA", "90028", 4, "888-99-0000"),
-            ("404-04-0004", "Quinn",  "Black",  None,  "10",  "Broad Street",     "New York",    "NY", "10004", 1, "222-33-4444"),
-            ("505-05-0005", "Rachel", "Silver", "7C",  "320", "Michigan Avenue",  "Chicago",     "IL", "60601", 3, "555-66-7777"),
-            ("606-06-0006", "Sam",    "Gold",   None,  "900", "Wilshire Blvd",    "Los Angeles", "CA", "90024", 4, "777-88-9999"),
-            ("707-07-0007", "Tina",   "Rose",   "2F",  "45",  "Beacon Street",    "Boston",      "MA", "02108", 5, "100-20-3040"),
-            ("808-08-0008", "Umar",   "Shah",   None,  "12",  "Tremont Street",   "Boston",      "MA", "02111", 5, "000-11-2222"),
+            ("101-01-0001", "Nancy",  "Green",  "4A",  "88",  "Park Avenue",      "New York",    "NY", "10016", "212-555-1001", 1, "999-00-1111"),
+            ("202-02-0002", "Oscar",  "Brown",  None,  "240", "Lakeshore Drive",  "Chicago",     "IL", "60614", "312-555-2002", 3, "666-77-8888"),
+            ("303-03-0003", "Paula",  "White",  "12B", "55",  "Sunset Boulevard", "Los Angeles", "CA", "90028", "310-555-3003", 4, "888-99-0000"),
+            ("404-04-0004", "Quinn",  "Black",  None,  "10",  "Broad Street",     "New York",    "NY", "10004", "212-555-4004", 1, "222-33-4444"),
+            ("505-05-0005", "Rachel", "Silver", "7C",  "320", "Michigan Avenue",  "Chicago",     "IL", "60601", "312-555-5005", 3, "555-66-7777"),
+            ("606-06-0006", "Sam",    "Gold",   None,  "900", "Wilshire Blvd",    "Los Angeles", "CA", "90024", "310-555-6006", 4, "777-88-9999"),
+            ("707-07-0007", "Tina",   "Rose",   "2F",  "45",  "Beacon Street",    "Boston",      "MA", "02108", "617-555-7007", 5, "100-20-3040"),
+            ("808-08-0008", "Umar",   "Shah",   None,  "12",  "Tremont Street",   "Boston",      "MA", "02111", "617-555-8008", 5, "000-11-2222"),
         ],
     },
     "Account": {
