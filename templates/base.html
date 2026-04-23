@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}BankingDB{% endblock %} — BankingDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #0f1f3d;
+      --blue:    #1a3a6b;
+      --mid:     #2e5fa3;
+      --accent:  #3b82f6;
+      --gold:    #c9a84c;
+      --success: #16a34a;
+      --danger:  #dc2626;
+      --warn:    #d97706;
+      --bg:      #f0f4f8;
+      --surface: #ffffff;
+      --border:  #d1dbe8;
+      --text:    #1e293b;
+      --muted:   #64748b;
+      --light:   #e8eef6;
+      --shadow:  0 1px 3px rgba(15,31,61,.08), 0 4px 16px rgba(15,31,61,.06);
+      --radius:  12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    nav {
+      background: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-inner {
+      max-width: 1280px; margin: 0 auto;
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 28px; height: 60px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: white;
+    }
+    .nav-brand-icon {
+      width: 34px; height: 34px;
+      background: var(--gold);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: var(--navy);
+    }
+    .nav-brand-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px; color: white; letter-spacing: .3px;
+    }
+    .nav-brand-text span { color: var(--gold); }
+
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-links a {
+      color: rgba(255,255,255,.75); text-decoration: none;
+      padding: 6px 14px; border-radius: 6px;
+      font-size: 13.5px; font-weight: 500;
+      transition: all .18s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      background: rgba(255,255,255,.1); color: white;
+    }
+    .nav-user {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .nav-badge {
+      background: var(--gold); color: var(--navy);
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .nav-badge.admin { background: #ef4444; color: white; }
+    .nav-logout {
+      color: rgba(255,255,255,.6) !important;
+      border: 1px solid rgba(255,255,255,.2) !important;
+    }
+    .nav-logout:hover { background: rgba(255,255,255,.08) !important; color: white !important; }
+
+    /* ── Page ────────────────────────────────────────────────── */
+    .page { max-width: 1280px; margin: 0 auto; padding: 32px 28px 60px; }
+
+    /* ── Flash messages ──────────────────────────────────────── */
+    .flash-list { list-style: none; margin-bottom: 20px; }
+    .flash-list li {
+      padding: 12px 16px; border-radius: 8px;
+      font-size: 14px; font-weight: 500;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .flash-warning { background: #fef3c7; color: #92400e; border-left: 3px solid var(--warn); }
+    .flash-danger  { background: #fee2e2; color: #7f1d1d; border-left: 3px solid var(--danger); }
+    .flash-info    { background: #dbeafe; color: #1e3a8a; border-left: 3px solid var(--accent); }
+    .flash-success { background: #dcfce7; color: #14532d; border-left: 3px solid var(--success); }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+    }
+    .card-header h2 {
+      font-size: 15px; font-weight: 600; color: var(--navy);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-body { padding: 22px; }
+
+    /* ── Stat cards ──────────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      padding: 20px 22px; position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%; background: var(--accent);
+    }
+    .stat-card.gold::before  { background: var(--gold); }
+    .stat-card.green::before { background: var(--success); }
+    .stat-card.red::before   { background: var(--danger); }
+    .stat-card.navy::before  { background: var(--navy); }
+    .stat-label { font-size: 11.5px; font-weight: 600; color: var(--muted);
+                  text-transform: uppercase; letter-spacing: .7px; margin-bottom: 6px; }
+    .stat-value { font-family: 'DM Serif Display', serif; font-size: 26px;
+                  color: var(--navy); line-height: 1.1; }
+    .stat-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    thead th {
+      background: var(--navy); color: rgba(255,255,255,.9);
+      padding: 11px 14px; text-align: left;
+      font-size: 11.5px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .6px;
+      white-space: nowrap;
+    }
+    thead th:first-child { border-radius: 0; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+    tbody tr:hover { background: var(--light); }
+    tbody td { padding: 11px 14px; color: var(--text); vertical-align: middle; }
+    tbody tr:last-child { border-bottom: none; }
+
+    /* ── Account type badges ─────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 9px;
+      border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: .4px; text-transform: uppercase;
+    }
+    .badge-savings      { background: #dcfce7; color: #166534; }
+    .badge-checking     { background: #dbeafe; color: #1e40af; }
+    .badge-money_market { background: #fef9c3; color: #854d0e; }
+    .badge-loan         { background: #fee2e2; color: #7f1d1d; }
+
+    /* ── Account cards (customer) ────────────────────────────── */
+    .account-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px; margin-bottom: 28px;
+    }
+    .account-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      padding: 22px; transition: transform .18s, box-shadow .18s;
+      text-decoration: none; color: inherit; display: block;
+    }
+    .account-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(15,31,61,.12);
+    }
+    .account-card-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .account-card-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      background: var(--light);
+    }
+    .account-card-num { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .account-balance {
+      font-family: 'DM Serif Display', serif; font-size: 28px;
+      color: var(--navy); margin-bottom: 10px;
+    }
+    .account-meta { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+
+    /* ── Page header ─────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; margin-bottom: 28px;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .page-header h1 {
+      font-family: 'DM Serif Display', serif; font-size: 28px;
+      color: var(--navy); line-height: 1.2;
+    }
+    .page-header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+    /* ── Profile pill ────────────────────────────────────────── */
+    .profile-card {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+      border-radius: var(--radius); padding: 24px 28px;
+      color: white; margin-bottom: 28px;
+      display: flex; align-items: center; gap: 20px;
+      flex-wrap: wrap;
+    }
+    .profile-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--gold); display: flex; align-items: center;
+      justify-content: center; font-family: 'DM Serif Display', serif;
+      font-size: 24px; color: var(--navy); flex-shrink: 0;
+    }
+    .profile-name {
+      font-family: 'DM Serif Display', serif; font-size: 22px;
+    }
+    .profile-meta { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 3px; }
+    .profile-details { margin-left: auto; display: flex; gap: 28px; flex-wrap: wrap; }
+    .profile-detail-item { text-align: right; }
+    .profile-detail-label { font-size: 11px; text-transform: uppercase;
+                            letter-spacing: .6px; color: rgba(255,255,255,.5); }
+    .profile-detail-value { font-size: 14px; font-weight: 500; color: rgba(255,255,255,.9); }
+
+    /* ── Tx code colors ──────────────────────────────────────── */
+    .tx-cd  { color: var(--success); font-weight: 700; }
+    .tx-wd  { color: var(--danger);  font-weight: 700; }
+    .tx-fee { color: var(--warn);    font-weight: 700; }
+    .tx-lp  { color: var(--mid);     font-weight: 700; }
+    .tx-tr  { color: var(--navy);    font-weight: 700; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 13.5px;
+      font-weight: 600; cursor: pointer; text-decoration: none;
+      border: none; transition: all .18s;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-outline {
+      background: transparent; color: var(--accent);
+      border: 1.5px solid var(--accent);
+    }
+    .btn-outline:hover { background: var(--light); }
+    .btn-sm { padding: 5px 11px; font-size: 12.5px; }
+
+    /* ── Search/filter row ───────────────────────────────────── */
+    .filter-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 16px; align-items: center;
+    }
+    .filter-row input, .filter-row select {
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 7px 12px; font-size: 13.5px; font-family: inherit;
+      background: white; color: var(--text); outline: none;
+    }
+    .filter-row input:focus, .filter-row select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+    }
+
+    /* ── Section gap ─────────────────────────────────────────── */
+    .section { margin-bottom: 28px; }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty {
+      text-align: center; padding: 40px 20px;
+      color: var(--muted); font-size: 14px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media(max-width: 640px) {
+      .page { padding: 20px 16px 40px; }
+      .nav-inner { padding: 0 16px; }
+      .profile-details { margin-left: 0; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% if session.user_id %}
+<nav>
+  <div class="nav-inner">
+    <a href="{{ url_for('dashboard') }}" class="nav-brand">
+      <div class="nav-brand-icon">B</div>
+      <span class="nav-brand-text">Banking<span>DB</span></span>
+    </a>
+
+    <div class="nav-links">
+      {% if session.role == 'admin' %}
+        <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('admin_accounts') }}">All Accounts</a>
+        <a href="{{ url_for('admin_transfer') }}">Transfer</a>
+      {% else %}
+        <a href="{{ url_for('customer_dashboard') }}">My Accounts</a>
+        <a href="{{ url_for('deposit') }}">Deposit</a>
+        <a href="{{ url_for('send') }}">⚡ Send</a>
+        <a href="{{ url_for('transfer') }}">Transfer</a>
+      {% endif %}
+    </div>
+
+    <div class="nav-user">
+      <span class="nav-badge {% if session.role == 'admin' %}admin{% endif %}">
+        {{ session.role }}
+      </span>
+      <span style="color:rgba(255,255,255,.7);font-size:13.5px;">{{ session.username }}</span>
+      <a href="{{ url_for('logout') }}" class="nav-links a nav-logout btn btn-sm btn-outline"
+         style="color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.25);">
+        Sign out
+      </a>
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+<div class="page">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flash-list">
+        {% for category, message in messages %}
+          <li class="flash-{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

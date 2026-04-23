@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}My Accounts{% endblock %}
+
+{% block content %}
+<!-- Profile banner -->
+<div class="profile-card">
+  <div class="profile-avatar">
+    {{ customer.first_name[0] }}{{ customer.last_name[0] }}
+  </div>
+  <div>
+    <div class="profile-name">{{ customer.first_name }} {{ customer.last_name }}</div>
+    <div class="profile-meta">
+      {{ customer.street_no }} {{ customer.street_name }}{% if customer.apt_no %}, Apt {{ customer.apt_no }}{% endif %},
+      {{ customer.city }}, {{ customer.state }} {{ customer.zip_code }}
+      {% if customer.phone_number %}· 📞 {{ customer.phone_number }}{% endif %}
+    </div>
+  </div>
+  <div class="profile-details">
+    <div class="profile-detail-item">
+      <div class="profile-detail-label">Branch</div>
+      <div class="profile-detail-value">{{ customer.branch_name or '—' }}</div>
+    </div>
+    <div class="profile-detail-item">
+      <div class="profile-detail-label">Personal Banker</div>
+      <div class="profile-detail-value">{{ customer.banker_name or '—' }}</div>
+    </div>
+    <div class="profile-detail-item">
+      <div class="profile-detail-label">Total Balance</div>
+      <div class="profile-detail-value" style="color:var(--gold);font-size:18px;">
+        {{ totals.grand_total | currency }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary stats -->
+<div class="stat-grid">
+  <div class="stat-card green">
+    <div class="stat-label">Savings</div>
+    <div class="stat-value">{{ totals.total_savings | currency }}</div>
+    <div class="stat-sub">Fixed interest accounts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Checking</div>
+    <div class="stat-value">{{ totals.total_checking | currency }}</div>
+    <div class="stat-sub">Day-to-day spending</div>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-label">Money Market</div>
+    <div class="stat-value">{{ totals.total_mm | currency }}</div>
+    <div class="stat-sub">Variable rate accounts</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-label">Loans</div>
+    <div class="stat-value">{{ totals.total_loans | currency }}</div>
+    <div class="stat-sub">Outstanding balance</div>
+  </div>
+</div>
+
+<!-- Account cards -->
+<div class="page-header">
+  <div>
+    <h1>My Accounts</h1>
+    <p>{{ accounts | length }} account{{ 's' if accounts | length != 1 }} linked to your profile</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="{{ url_for('deposit') }}" class="btn btn-primary" style="background:linear-gradient(135deg,#14532d,#16a34a);border:none;">+ Deposit</a>
+    <a href="{{ url_for('send') }}" class="btn btn-primary" style="background:linear-gradient(135deg,#312e81,#4f46e5);border:none;">⚡ Send</a>
+    {% if accounts | length >= 2 %}
+    <a href="{{ url_for('transfer') }}" class="btn btn-primary">⇄ Transfer</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if accounts %}
+<div class="account-grid">
+  {% for acc in accounts %}
+  <a href="{{ url_for('account_detail', account_no=acc.account_no) }}" class="account-card">
+    <div class="account-card-top">
+      <div class="account-card-icon">{{ acc.account_type | account_icon }}</div>
+      <span class="badge badge-{{ acc.account_type | lower }}">{{ acc.account_type | replace('_', ' ') }}</span>
+    </div>
+    <div class="account-balance">{{ acc.balance | currency }}</div>
+    <div class="account-card-num">Account #{{ acc.account_no }}</div>
+    <div class="account-meta" style="margin-top:10px;">
+      <span>Opened {{ acc.open_date }}</span>
+      <span>Last access {{ acc.last_access_date }}</span>
+    </div>
+
+    {% if acc.account_type == 'SAVINGS' %}
+      <div style="margin-top:10px;font-size:12px;color:var(--success);font-weight:600;">
+        {{ acc.savings_rate | pct }} annual rate
+      </div>
+    {% elif acc.account_type == 'CHECKING' and acc.overdraft_amount %}
+      <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+        Overdraft: {{ acc.overdraft_amount | currency }}
+      </div>
+    {% elif acc.account_type == 'MONEY_MARKET' %}
+      <div style="margin-top:10px;font-size:12px;color:var(--warn);font-weight:600;">
+        {{ acc.mm_rate | pct }} variable rate
+      </div>
+    {% elif acc.account_type == 'LOAN' %}
+      <div style="margin-top:10px;font-size:12px;color:var(--danger);font-weight:600;">
+        {{ acc.loan_rate | pct }} · {{ acc.monthly_repayment | currency }}/mo
+      </div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card"><div class="card-body empty">
+  <div class="empty-icon">🏦</div>
+  <p>No accounts linked to your profile.</p>
+</div></div>
+{% endif %}
+
+<!-- Recent transactions -->
+<div class="section">
+  <div class="card">
+    <div class="card-header">
+      <h2>📋 Recent Transactions</h2>
+      <span style="font-size:12px;color:var(--muted);">Last 10 across all accounts</span>
+    </div>
+    <div class="table-wrap">
+      {% if transactions %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Description</th>
+            <th>Account</th>
+            <th>Amount</th>
+            <th>Fee</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          <tr>
+            <td style="color:var(--muted);">{{ t.transaction_id }}</td>
+            <td>{{ t.tran_date }}</td>
+            <td style="color:var(--muted);">{{ t.tran_time }}</td>
+            <td>
+              <span class="tx-{{ t.transaction_code | lower }}">{{ t.transaction_code }}</span>
+              {{ t.transaction_name }}
+            </td>
+            <td>
+              <span class="badge badge-{{ t.account_type | lower }}">#{{ t.account_no }}</span>
+            </td>
+            <td style="font-weight:600;">{{ t.amount | currency }}</td>
+            <td>
+              {% if t.is_chargeable %}
+                <span style="color:var(--warn);font-size:12px;">+{{ t.charge_amount | currency }}</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="empty-icon">📭</div><p>No transactions yet.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

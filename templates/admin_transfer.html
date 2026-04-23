@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Admin — Transfer Funds{% endblock %}
+
+{% block extra_head %}
+<style>
+  .admin-transfer-wrap { max-width: 700px; margin: 0 auto; }
+
+  .transfer-card {
+    background: white; border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 20px;
+  }
+  .transfer-header {
+    background: linear-gradient(135deg, var(--navy) 0%, #2d1b69 100%);
+    padding: 26px 32px; color: white;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .transfer-header h1 {
+    font-family: 'DM Serif Display', serif; font-size: 24px; margin-bottom: 3px;
+  }
+  .transfer-header p { font-size: 13px; color: rgba(255,255,255,.6); }
+  .admin-pill {
+    background: rgba(239,68,68,.25); border: 1px solid rgba(239,68,68,.4);
+    color: #fca5a5; font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px; letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  .transfer-body { padding: 28px 32px; }
+
+  /* Customer selector */
+  .customer-select-wrap {
+    background: var(--light); border-radius: 10px;
+    border: 1px solid var(--border); padding: 20px;
+    margin-bottom: 24px;
+  }
+  .customer-select-wrap h3 {
+    font-size: 13px; font-weight: 700; color: var(--navy);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
+  }
+  .customer-row {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .customer-row select {
+    flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+    background: white; color: var(--text); outline: none;
+    transition: border-color .18s;
+  }
+  .customer-row select:focus { border-color: var(--accent); }
+  .btn-load {
+    padding: 10px 18px; background: var(--navy); color: white;
+    border: none; border-radius: 8px; font-size: 13.5px;
+    font-weight: 600; font-family: inherit; cursor: pointer;
+    white-space: nowrap; transition: background .18s;
+  }
+  .btn-load:hover { background: var(--blue); }
+
+  /* Selected customer banner */
+  .selected-customer {
+    background: linear-gradient(135deg, #1e3a5f, #2d5a8e);
+    border-radius: 10px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 24px; color: white;
+  }
+  .cust-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--gold); display: flex; align-items: center;
+    justify-content: center; font-family: 'DM Serif Display', serif;
+    font-size: 18px; color: var(--navy); flex-shrink: 0;
+  }
+  .cust-name { font-weight: 600; font-size: 15px; }
+  .cust-ssn  { font-size: 12px; color: rgba(255,255,255,.55);
+               font-family: monospace; margin-top: 2px; }
+  .change-link {
+    margin-left: auto; font-size: 12.5px;
+    color: rgba(255,255,255,.6); text-decoration: none;
+  }
+  .change-link:hover { color: white; }
+
+  /* Form fields */
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block; font-size: 12px; font-weight: 700; color: var(--navy);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px;
+  }
+  .form-select {
+    width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #f8fafc; outline: none;
+    transition: border-color .18s, box-shadow .18s; appearance: none;
+  }
+  .form-select:focus {
+    border-color: var(--accent); background: white;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+  }
+
+  .transfer-arrow {
+    display: flex; align-items: center; justify-content: center;
+    margin: 4px 0 20px; gap: 10px;
+  }
+  .transfer-arrow::before, .transfer-arrow::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .arrow-icon {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--light); border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--mid);
+  }
+
+  .amount-wrap { position: relative; }
+  .amount-prefix {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px; font-weight: 600; color: var(--muted);
+    pointer-events: none;
+  }
+  .form-input {
+    width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #f8fafc; outline: none;
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .form-input:focus {
+    border-color: var(--accent); background: white;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+  }
+  .amount-input { padding-left: 28px !important; font-size: 20px !important;
+                  font-weight: 700; color: var(--navy) !important; }
+
+  .balance-preview {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-bottom: 22px;
+  }
+  .bal-card {
+    background: var(--light); border-radius: 9px; padding: 13px 16px;
+    border: 1px solid var(--border);
+  }
+  .bal-label { font-size: 11px; color: var(--muted);
+               text-transform: uppercase; letter-spacing: .5px; }
+  .bal-value { font-family: 'DM Serif Display', serif;
+               font-size: 20px; color: var(--navy); margin-top: 2px; }
+  .bal-card.to .bal-value { color: var(--success); }
+
+  .hint { font-size: 12px; margin-top: 5px; }
+
+  /* Admin warning */
+  .admin-note {
+    background: #fff7ed; border: 1px solid #fdba74;
+    border-radius: 8px; padding: 11px 14px;
+    font-size: 13px; color: #92400e;
+    display: flex; gap: 8px; margin-bottom: 22px;
+  }
+
+  .btn-transfer {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #1a1a4e, var(--blue));
+    color: white; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 700; font-family: inherit;
+    cursor: pointer; transition: opacity .18s;
+  }
+  .btn-transfer:hover { opacity: .9; }
+  .btn-transfer:disabled { opacity: .45; cursor: not-allowed; }
+
+  .cancel-link {
+    display: block; text-align: center; margin-top: 14px;
+    font-size: 13.5px; color: var(--muted); text-decoration: none;
+  }
+  .cancel-link:hover { color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-transfer-wrap">
+
+  <div class="page-header">
+    <div>
+      <h1>Transfer on Behalf of Customer</h1>
+      <p>Select a customer and move funds between their accounts</p>
+    </div>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">← Dashboard</a>
+  </div>
+
+  <!-- Step 1: Customer selection -->
+  {% if not customer %}
+  <div class="transfer-card">
+    <div class="transfer-header">
+      <div>
+        <h1>Step 1 — Select Customer</h1>
+        <p>Only customers with two or more non-loan accounts are shown</p>
+      </div>
+      <span class="admin-pill">Admin</span>
+    </div>
+    <div class="transfer-body">
+      <form method="GET" action="{{ url_for('admin_transfer') }}">
+        <div class="customer-select-wrap">
+          <h3>Choose Customer</h3>
+          <div class="customer-row">
+            <select name="ssn" required>
+              <option value="">— Select a customer —</option>
+              {% for c in all_customers %}
+              <option value="{{ c.ssn }}" {% if c.ssn == selected_ssn %}selected{% endif %}>
+                {{ c.name }} ({{ c.eligible_accounts }} eligible accounts)
+              </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn-load">Load Accounts →</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% else %}
+
+  <!-- Step 2: Transfer form -->
+  <div class="transfer-card">
+    <div class="transfer-header">
+      <div>
+        <h1>Step 2 — Transfer Details</h1>
+        <p>Funds will be moved between the selected accounts immediately</p>
+      </div>
+      <span class="admin-pill">Admin</span>
+    </div>
+
+    <div class="transfer-body">
+
+      <!-- Selected customer banner -->
+      <div class="selected-customer">
+        <div class="cust-avatar">
+          {{ customer.name.split()[0][0] }}{{ customer.name.split()[-1][0] }}
+        </div>
+        <div>
+          <div class="cust-name">{{ customer.name }}</div>
+          <div class="cust-ssn">SSN: {{ customer.ssn }}</div>
+        </div>
+        <a href="{{ url_for('admin_transfer') }}" class="change-link">Change customer ↩</a>
+      </div>
+
+      <div class="admin-note">
+        ⚠️ You are acting on behalf of <strong>{{ customer.name }}</strong>.
+        This transfer will be logged as an admin-initiated action in Transaction_Log.
+      </div>
+
+      <form method="POST" action="{{ url_for('admin_transfer') }}" id="adminTransferForm">
+        <input type="hidden" name="customer_ssn" value="{{ customer.ssn }}">
+
+        <!-- From account -->
+        <div class="form-group">
+          <label class="form-label" for="from_account">From Account</label>
+          <select class="form-select" name="from_account" id="from_account"
+                  required onchange="updatePreview()">
+            <option value="">— Select source account —</option>
+            {% for a in customer_accounts %}
+            <option value="{{ a.account_no }}"
+                    data-balance="{{ a.balance }}"
+                    data-type="{{ a.account_type }}">
+              #{{ a.account_no }} · {{ a.account_type | replace('_',' ') }} · ${{ '{:,.2f}'.format(a.balance | float) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="transfer-arrow"><div class="arrow-icon">↓</div></div>
+
+        <!-- To account -->
+        <div class="form-group">
+          <label class="form-label" for="to_account">To Account</label>
+          <select class="form-select" name="to_account" id="to_account"
+                  required onchange="updatePreview()">
+            <option value="">— Select destination account —</option>
+            {% for a in customer_accounts %}
+            <option value="{{ a.account_no }}"
+                    data-balance="{{ a.balance }}"
+                    data-type="{{ a.account_type }}">
+              #{{ a.account_no }} · {{ a.account_type | replace('_',' ') }} · ${{ '{:,.2f}'.format(a.balance | float) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Balance preview -->
+        <div class="balance-preview" id="balancePreview" style="display:none;">
+          <div class="bal-card">
+            <div class="bal-label">Available to Transfer</div>
+            <div class="bal-value" id="fromBal">—</div>
+          </div>
+          <div class="bal-card to">
+            <div class="bal-label">Destination Balance</div>
+            <div class="bal-value" id="toBal">—</div>
+          </div>
+        </div>
+
+        <!-- Amount -->
+        <div class="form-group">
+          <label class="form-label" for="amount">Amount</label>
+          <div class="amount-wrap">
+            <span class="amount-prefix">$</span>
+            <input class="form-input amount-input" type="number"
+                   id="amount" name="amount"
+                   placeholder="0.00" min="0.01" step="0.01"
+                   required oninput="validateAmount()">
+          </div>
+          <div class="hint" id="amountHint"></div>
+        </div>
+
+        <button type="submit" class="btn-transfer" id="submitBtn">
+          Confirm Transfer on Behalf of {{ customer.name }} →
+        </button>
+      </form>
+
+      <a href="{{ url_for('admin_customer_detail', ssn=customer.ssn) }}"
+         class="cancel-link">← Cancel and return to customer profile</a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  const fromSel   = document.getElementById('from_account');
+  const toSel     = document.getElementById('to_account');
+  const amtInput  = document.getElementById('amount');
+  const hint      = document.getElementById('amountHint');
+  const preview   = document.getElementById('balancePreview');
+  const fromBal   = document.getElementById('fromBal');
+  const toBal     = document.getElementById('toBal');
+  const submitBtn = document.getElementById('submitBtn');
+
+  if (!fromSel) { /* step 1 — no JS needed */ }
+  else {
+    function fmt(n) {
+      return '$' + parseFloat(n).toLocaleString('en-US',
+        {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+    function getOpt(sel) {
+      const o = sel.options[sel.selectedIndex];
+      if (!o || !o.value) return null;
+      return { no: o.value, balance: parseFloat(o.dataset.balance) };
+    }
+    function updatePreview() {
+      const f = getOpt(fromSel), t = getOpt(toSel);
+      Array.from(toSel.options).forEach(o => { o.hidden = f && o.value === f.no; });
+      Array.from(fromSel.options).forEach(o => { o.hidden = t && o.value === t.no; });
+      if (f && t) {
+        preview.style.display = 'grid';
+        fromBal.textContent = fmt(f.balance);
+        toBal.textContent   = fmt(t.balance);
+      } else {
+        preview.style.display = 'none';
+      }
+      validateAmount();
+    }
+    function validateAmount() {
+      const f = getOpt(fromSel), t = getOpt(toSel);
+      const amt = parseFloat(amtInput ? amtInput.value : 0);
+      if (!f || !t || !amt || amt <= 0) { hint.textContent=''; submitBtn.disabled=false; return; }
+      if (f.no === t.no) {
+        hint.style.color='var(--danger)';
+        hint.textContent='Source and destination must be different.';
+        submitBtn.disabled=true; return;
+      }
+      if (amt > f.balance) {
+        hint.style.color='var(--danger)';
+        hint.textContent=`Exceeds available balance of ${fmt(f.balance)}.`;
+        submitBtn.disabled=true;
+      } else {
+        hint.style.color='var(--success)';
+        hint.textContent=`Remaining balance after transfer: ${fmt(f.balance - amt)}`;
+        submitBtn.disabled=false;
+      }
+    }
+    document.getElementById('adminTransferForm').addEventListener('submit', function(e) {
+      const f = getOpt(fromSel), t = getOpt(toSel);
+      if (f && t && f.no === t.no) {
+        e.preventDefault();
+        hint.style.color='var(--danger)';
+        hint.textContent='Source and destination must be different.';
+      }
+    });
+  }
+</script>
+{% endblock %}

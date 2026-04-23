@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% block title %}Send Money{% endblock %}
+
+{% block extra_head %}
+<style>
+  .send-wrap { max-width: 560px; margin: 0 auto; }
+
+  .send-card {
+    background: white; border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .send-header {
+    background: linear-gradient(135deg, #312e81 0%, #4f46e5 100%);
+    padding: 28px 32px; color: white;
+  }
+  .send-header h1 {
+    font-family: 'DM Serif Display', serif; font-size: 26px; margin-bottom: 4px;
+  }
+  .send-header p { font-size: 13.5px; color: rgba(255,255,255,.65); }
+
+  .send-body { padding: 32px; }
+
+  /* Step indicators */
+  .steps {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 28px;
+  }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 600; color: var(--muted);
+  }
+  .step.active { color: #4f46e5; }
+  .step.done   { color: var(--success); }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .step.done .step-num { background: var(--success); border-color: var(--success); color: white; }
+  .step.active .step-num { background: #4f46e5; border-color: #4f46e5; color: white; }
+  .step-line { flex: 1; height: 2px; background: var(--border); margin: 0 8px; }
+  .step-line.done { background: var(--success); }
+
+  /* Phone search */
+  .phone-search-wrap { position: relative; margin-bottom: 10px; }
+  .phone-icon {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%); font-size: 16px; pointer-events: none;
+  }
+  .phone-input {
+    width: 100%; padding: 13px 48px 13px 44px;
+    border: 2px solid var(--border); border-radius: 10px;
+    font-size: 16px; font-family: inherit; color: var(--text);
+    background: #f8fafc; outline: none;
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .phone-input:focus {
+    border-color: #4f46e5; background: white;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+  }
+  .phone-search-btn {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: #4f46e5; color: white; border: none; border-radius: 7px;
+    padding: 7px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: background .15s;
+  }
+  .phone-search-btn:hover { background: #4338ca; }
+  .phone-search-btn:disabled { background: var(--muted); cursor: default; }
+  .phone-hint {
+    font-size: 12px; color: var(--muted); margin-top: 5px; min-height: 18px;
+  }
+
+  /* Recipient found card */
+  .recipient-card {
+    background: #f0fdf4; border: 2px solid #86efac;
+    border-radius: 12px; padding: 16px 20px;
+    display: none; align-items: center; gap: 14px;
+    margin-bottom: 24px; animation: fadeIn .25s ease;
+  }
+  .recipient-card.visible { display: flex; }
+  .recipient-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Serif Display', serif; font-size: 18px;
+    color: white; flex-shrink: 0;
+  }
+  .recipient-name { font-weight: 700; font-size: 15px; color: #166534; }
+  .recipient-phone { font-size: 12px; color: #4b7a55; margin-top: 2px; }
+  .recipient-check { margin-left: auto; font-size: 22px; }
+  .clear-recipient {
+    margin-left: 8px; background: none; border: none; cursor: pointer;
+    color: #4b7a55; font-size: 18px; line-height: 1;
+  }
+
+  /* Not found */
+  .not-found-msg {
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; color: #7f1d1d; margin-bottom: 16px; display: none;
+  }
+  .not-found-msg.visible { display: block; }
+
+  /* Form fields */
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block; font-size: 12px; font-weight: 700; color: var(--navy);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px;
+  }
+  .form-select {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #f8fafc; outline: none;
+    transition: border-color .18s; appearance: none;
+  }
+  .form-select:focus { border-color: #4f46e5; background: white; }
+
+  /* Amount */
+  .amount-wrap { position: relative; }
+  .amount-prefix {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px; font-weight: 600; color: var(--muted); pointer-events: none;
+  }
+  .form-input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #f8fafc; outline: none;
+    transition: border-color .18s;
+  }
+  .form-input:focus { border-color: #4f46e5; background: white; }
+  .amount-input { padding-left: 30px !important; font-size: 26px !important;
+                  font-weight: 700; color: var(--navy) !important; }
+  .quick-amounts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .quick-btn {
+    padding: 5px 14px; border: 1.5px solid #4f46e5; border-radius: 20px;
+    font-size: 13px; font-weight: 600; color: #4f46e5;
+    background: transparent; cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .quick-btn:hover { background: #4f46e5; color: white; }
+
+  .balance-hint { font-size: 12px; margin-top: 5px; color: var(--muted); }
+  .balance-hint.warn { color: var(--danger); }
+
+  /* Note field */
+  .form-input-text {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-size: 14px; font-family: inherit;
+    color: var(--text); background: #f8fafc; outline: none;
+    transition: border-color .18s;
+  }
+  .form-input-text:focus { border-color: #4f46e5; background: white; }
+
+  /* Send button */
+  .btn-send {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #312e81, #4f46e5);
+    color: white; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 700; font-family: inherit;
+    cursor: pointer; transition: opacity .18s; letter-spacing: .3px;
+  }
+  .btn-send:hover { opacity: .9; }
+  .btn-send:disabled { opacity: .4; cursor: not-allowed; }
+
+  .cancel-link {
+    display: block; text-align: center; margin-top: 14px;
+    font-size: 13.5px; color: var(--muted); text-decoration: none;
+  }
+  .cancel-link:hover { color: #4f46e5; }
+
+  /* Divider */
+  .form-divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 22px 0;
+  }
+
+  .loading-spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: white; border-radius: 50%;
+    animation: spin .6s linear infinite; vertical-align: middle; margin-right: 4px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="send-wrap">
+  <div class="send-card">
+
+    <div class="send-header">
+      <h1>⚡ Send Money</h1>
+      <p>Send funds to any BankingDB customer using their phone number</p>
+    </div>
+
+    <div class="send-body">
+
+      <!-- Steps -->
+      <div class="steps">
+        <div class="step" id="step1indicator">
+          <div class="step-num">1</div>
+          <span>Find recipient</span>
+        </div>
+        <div class="step-line" id="line1"></div>
+        <div class="step" id="step2indicator">
+          <div class="step-num">2</div>
+          <span>Enter amount</span>
+        </div>
+        <div class="step-line" id="line2"></div>
+        <div class="step" id="step3indicator">
+          <div class="step-num">3</div>
+          <span>Confirm</span>
+        </div>
+      </div>
+
+      <!-- STEP 1 — Phone lookup -->
+      <div id="step1">
+        <div class="form-label">Recipient's Phone Number</div>
+        <div class="phone-search-wrap">
+          <span class="phone-icon">📱</span>
+          <input class="phone-input" type="tel" id="phoneInput"
+                 placeholder="e.g. 212-555-1001"
+                 autocomplete="tel">
+          <button class="phone-search-btn" id="searchBtn" onclick="lookupPhone()">Find</button>
+        </div>
+        <div class="phone-hint" id="phoneHint">Enter the recipient's registered phone number.</div>
+
+        <!-- Not found message -->
+        <div class="not-found-msg" id="notFoundMsg">
+          ❌ No customer found with that phone number. Please check and try again.
+        </div>
+      </div>
+
+      <!-- Recipient found card (shown after lookup) -->
+      <div class="recipient-card" id="recipientCard">
+        <div class="recipient-avatar" id="recipientInitials">—</div>
+        <div>
+          <div class="recipient-name" id="recipientName">—</div>
+          <div class="recipient-phone" id="recipientPhoneDisplay">—</div>
+        </div>
+        <span class="recipient-check">✅</span>
+        <button class="clear-recipient" onclick="clearRecipient()" title="Change recipient">✕</button>
+      </div>
+
+      <!-- STEP 2 + 3 — Payment form (revealed after recipient found) -->
+      <form method="POST" action="{{ url_for('send') }}" id="sendForm"
+            style="display:none;">
+        <input type="hidden" name="recipient_ssn" id="recipientSsn">
+
+        <hr class="form-divider">
+
+        <!-- From account -->
+        <div class="form-group">
+          <label class="form-label" for="from_account">Pay From</label>
+          <select class="form-select" name="from_account" id="fromAccount"
+                  required onchange="updateBalance()">
+            <option value="">— Select account —</option>
+            {% for a in sender_accounts %}
+            <option value="{{ a.account_no }}"
+                    data-balance="{{ a.balance }}"
+                    data-type="{{ a.account_type }}">
+              #{{ a.account_no }} · {{ a.account_type | replace('_',' ') }}
+              · ${{ '{:,.2f}'.format(a.balance | float) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Amount -->
+        <div class="form-group">
+          <label class="form-label" for="amount">Amount</label>
+          <div class="amount-wrap">
+            <span class="amount-prefix">$</span>
+            <input class="form-input amount-input" type="number"
+                   id="amount" name="amount"
+                   placeholder="0.00" min="0.01" step="0.01"
+                   required oninput="validateSend()">
+          </div>
+          <div class="quick-amounts">
+            <button type="button" class="quick-btn" onclick="setAmt(10)">$10</button>
+            <button type="button" class="quick-btn" onclick="setAmt(25)">$25</button>
+            <button type="button" class="quick-btn" onclick="setAmt(50)">$50</button>
+            <button type="button" class="quick-btn" onclick="setAmt(100)">$100</button>
+            <button type="button" class="quick-btn" onclick="setAmt(500)">$500</button>
+          </div>
+          <div class="balance-hint" id="balanceHint"></div>
+        </div>
+
+        <!-- Note -->
+        <div class="form-group">
+          <label class="form-label" for="note">
+            Note <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(optional)</span>
+          </label>
+          <input class="form-input-text" type="text" id="note" name="note"
+                 placeholder="e.g. Dinner, Rent, Birthday gift…"
+                 maxlength="60">
+        </div>
+
+        <button type="submit" class="btn-send" id="sendBtn" disabled>
+          Send Payment →
+        </button>
+      </form>
+
+      <a href="{{ url_for('customer_dashboard') }}" class="cancel-link">
+        ← Back to dashboard
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  let recipientData = null;
+
+  const phoneInput  = document.getElementById('phoneInput');
+  const phoneHint   = document.getElementById('phoneHint');
+  const notFoundMsg = document.getElementById('notFoundMsg');
+  const recipientCard = document.getElementById('recipientCard');
+  const sendForm    = document.getElementById('sendForm');
+  const sendBtn     = document.getElementById('sendBtn');
+  const fromAcct    = document.getElementById('fromAccount');
+  const amtInput    = document.getElementById('amount');
+  const balHint     = document.getElementById('balanceHint');
+
+  // Step indicators
+  const s1 = document.getElementById('step1indicator');
+  const s2 = document.getElementById('step2indicator');
+  const s3 = document.getElementById('step3indicator');
+  const l1 = document.getElementById('line1');
+  const l2 = document.getElementById('line2');
+
+  function setSteps(s) {
+    // s = 1, 2, or 3
+    [s1,s2,s3].forEach((el,i) => {
+      el.classList.remove('active','done');
+      if (i+1 < s)  el.classList.add('done');
+      if (i+1 === s) el.classList.add('active');
+    });
+    l1.classList.toggle('done', s >= 2);
+    l2.classList.toggle('done', s >= 3);
+  }
+
+  setSteps(1);
+
+  // Allow pressing Enter in the phone field
+  phoneInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); lookupPhone(); }
+  });
+
+  async function lookupPhone() {
+    const phone = phoneInput.value.trim();
+    if (!phone) { phoneHint.textContent = 'Please enter a phone number.'; return; }
+
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span>';
+    notFoundMsg.classList.remove('visible');
+    phoneHint.textContent = 'Searching…';
+
+    try {
+      const resp = await fetch('/send/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        notFoundMsg.classList.add('visible');
+        phoneHint.textContent = '';
+        btn.disabled = false;
+        btn.textContent = 'Find';
+        return;
+      }
+
+      // Found — show recipient card
+      recipientData = data;
+      document.getElementById('recipientInitials').textContent   = data.initials;
+      document.getElementById('recipientName').textContent        = data.name;
+      document.getElementById('recipientPhoneDisplay').textContent = data.phone;
+      document.getElementById('recipientSsn').value               = data.ssn;
+
+      recipientCard.classList.add('visible');
+      sendForm.style.display = 'block';
+      phoneHint.textContent  = '';
+      setSteps(2);
+
+    } catch (err) {
+      phoneHint.textContent = 'Network error. Please try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Find';
+    }
+  }
+
+  function clearRecipient() {
+    recipientData = null;
+    recipientCard.classList.remove('visible');
+    sendForm.style.display = 'none';
+    document.getElementById('recipientSsn').value = '';
+    phoneInput.value = '';
+    phoneHint.textContent = 'Enter the recipient\'s registered phone number.';
+    notFoundMsg.classList.remove('visible');
+    sendBtn.disabled = true;
+    setSteps(1);
+    phoneInput.focus();
+  }
+
+  function fmt(n) {
+    return '$' + parseFloat(n).toLocaleString('en-US',
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function setAmt(v) {
+    amtInput.value = v;
+    validateSend();
+    amtInput.focus();
+  }
+
+  function updateBalance() { validateSend(); }
+
+  function validateSend() {
+    const opt = fromAcct.options[fromAcct.selectedIndex];
+    const amt = parseFloat(amtInput.value) || 0;
+
+    if (!opt || !opt.value || amt <= 0) {
+      balHint.textContent = '';
+      sendBtn.disabled = true;
+      setSteps(2);
+      return;
+    }
+
+    const balance = parseFloat(opt.dataset.balance);
+
+    if (amt > balance) {
+      balHint.className = 'balance-hint warn';
+      balHint.textContent = `Exceeds available balance of ${fmt(balance)}.`;
+      sendBtn.disabled = true;
+      setSteps(2);
+    } else {
+      balHint.className = 'balance-hint';
+      balHint.textContent = `Available: ${fmt(balance)} · Remaining after send: ${fmt(balance - amt)}`;
+      sendBtn.disabled = false;
+      sendBtn.textContent = recipientData
+        ? `Send ${fmt(amt)} to ${recipientData.name} →`
+        : 'Send Payment →';
+      setSteps(3);
+    }
+  }
+
+  {% if prefill_recipient %}
+  // Pre-fill recipient SSN if returning from a failed POST
+  document.getElementById('recipientSsn').value = '{{ prefill_recipient }}';
+  {% endif %}
+</script>
+{% endblock %}

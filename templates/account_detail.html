@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Account #{{ account.account_no }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ account.account_type | account_icon }} Account #{{ account.account_no }}</h1>
+    <p>
+      <span class="badge badge-{{ account.account_type | lower }}">
+        {{ account.account_type | replace('_',' ') }}
+      </span>
+      &nbsp;Opened {{ account.open_date }}
+    </p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    {% if session.role == 'customer' and account.account_type != 'LOAN' %}
+    <a href="{{ url_for('deposit') }}?account_no={{ account.account_no }}"
+       class="btn btn-primary"
+       style="background:linear-gradient(135deg,#14532d,#16a34a);border:none;">+ Deposit</a>
+    {% endif %}
+    <a href="javascript:history.back()" class="btn btn-outline">← Back</a>
+  </div>
+</div>
+
+<!-- Balance hero -->
+<div style="background:linear-gradient(135deg,var(--navy) 0%,var(--blue) 100%);
+            border-radius:var(--radius);padding:28px 32px;margin-bottom:24px;
+            display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+  <div>
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.8px;
+                color:rgba(255,255,255,.5);margin-bottom:8px;">Current Balance</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:42px;color:white;">
+      {{ account.balance | currency }}
+    </div>
+  </div>
+  <div style="display:flex;gap:28px;flex-wrap:wrap;">
+    {% if account.account_type == 'SAVINGS' %}
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Interest Rate</div>
+      <div style="font-size:22px;color:var(--gold);font-weight:600;">{{ account.interest_rate | pct }}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);">Annual / Fixed</div>
+    </div>
+    {% elif account.account_type == 'CHECKING' %}
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Overdraft Limit</div>
+      <div style="font-size:22px;color:white;font-weight:600;">{{ account.overdraft_amount | currency }}</div>
+    </div>
+    {% elif account.account_type == 'MONEY_MARKET' %}
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Current Rate</div>
+      <div style="font-size:22px;color:var(--gold);font-weight:600;">{{ account.current_interest_rate | pct }}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);">Updated {{ account.last_rate_update | string | truncate(10, True, '') }}</div>
+    </div>
+    {% elif account.account_type == 'LOAN' %}
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Monthly Repayment</div>
+      <div style="font-size:22px;color:#fca5a5;font-weight:600;">{{ account.monthly_repayment | currency }}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Interest Rate</div>
+      <div style="font-size:22px;color:var(--gold);font-weight:600;">{{ account.loan_rate | pct }}</div>
+    </div>
+    {% if account.loan_branch %}
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;">Originated At</div>
+      <div style="font-size:14px;color:rgba(255,255,255,.8);">{{ account.loan_branch }}</div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- Account holders -->
+<div class="card section">
+  <div class="card-header"><h2>👥 Account Holders</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Last Access</th></tr></thead>
+      <tbody>
+        {% for h in holders %}
+        <tr><td>{{ h.name }}</td><td>{{ h.last_access_date }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Transaction history -->
+<div class="card section">
+  <div class="card-header">
+    <h2>📋 Transaction History</h2>
+    <span style="font-size:12px;color:var(--muted);">{{ txns | length }} transaction{{ 's' if txns|length!=1 }}</span>
+  </div>
+  <div class="table-wrap">
+    {% if txns %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Date</th><th>Time</th><th>Code</th>
+          <th>Description</th><th>Amount</th><th>Chargeable</th><th>Fee</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in txns %}
+        <tr>
+          <td style="color:var(--muted);">{{ t.transaction_id }}</td>
+          <td>{{ t.tran_date }}</td>
+          <td style="color:var(--muted);">{{ t.tran_time }}</td>
+          <td><span class="tx-{{ t.transaction_code | lower }}">{{ t.transaction_code }}</span></td>
+          <td>{{ t.transaction_name }}</td>
+          <td style="font-weight:600;">{{ t.amount | currency }}</td>
+          <td>{% if t.is_chargeable %}<span style="color:var(--warn);">Yes</span>{% else %}—{% endif %}</td>
+          <td>{% if t.charge_amount %}{{ t.charge_amount | currency }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty"><div class="empty-icon">📭</div><p>No transactions on this account.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

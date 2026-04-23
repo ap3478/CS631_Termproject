@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — BankingDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #0f1f3d;
+      --blue:   #1a3a6b;
+      --mid:    #2e5fa3;
+      --accent: #3b82f6;
+      --gold:   #c9a84c;
+      --danger: #dc2626;
+      --border: #d1dbe8;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh; display: flex;
+      background: var(--navy);
+      overflow: hidden;
+    }
+
+    /* Left panel */
+    .left-panel {
+      width: 45%; background: linear-gradient(160deg, #0a1628 0%, #1a3a6b 60%, #0f2d58 100%);
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 60px 56px; position: relative; overflow: hidden;
+    }
+    .left-panel::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 70%, rgba(201,168,76,.12) 0%, transparent 60%);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 60px; }
+    .brand-icon {
+      width: 48px; height: 48px; background: var(--gold);
+      border-radius: 12px; display: flex; align-items: center;
+      justify-content: center; font-family: 'DM Serif Display', serif;
+      font-size: 22px; color: var(--navy);
+    }
+    .brand-name {
+      font-family: 'DM Serif Display', serif; font-size: 22px; color: white;
+    }
+    .brand-name span { color: var(--gold); }
+    .tagline {
+      font-family: 'DM Serif Display', serif; font-size: 36px;
+      color: white; line-height: 1.25; margin-bottom: 18px;
+    }
+    .tagline em { color: var(--gold); font-style: normal; }
+    .left-desc { color: rgba(255,255,255,.55); font-size: 14px; line-height: 1.7; margin-bottom: 48px; }
+
+    /* Right panel */
+    .right-panel {
+      flex: 1; background: #f0f4f8;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px;
+    }
+    .login-box {
+      background: white; border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(15,31,61,.12);
+      padding: 44px 40px; width: 100%; max-width: 400px;
+    }
+    .login-box h2 {
+      font-family: 'DM Serif Display', serif; font-size: 26px;
+      color: var(--navy); margin-bottom: 6px;
+    }
+    .login-box p { font-size: 13.5px; color: #64748b; margin-bottom: 32px; }
+
+    .form-group { margin-bottom: 18px; }
+    label {
+      display: block; font-size: 12.5px; font-weight: 600;
+      color: var(--navy); margin-bottom: 6px; letter-spacing: .2px;
+    }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-size: 14px; font-family: inherit; color: #1e293b;
+      outline: none; transition: border-color .18s, box-shadow .18s;
+      background: #f8fafc;
+    }
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+      background: white;
+    }
+
+    .flash-danger {
+      background: #fee2e2; border-left: 3px solid var(--danger);
+      color: #7f1d1d; padding: 10px 14px; border-radius: 8px;
+      font-size: 13.5px; margin-bottom: 18px;
+    }
+
+    .btn-login {
+      width: 100%; padding: 12px;
+      background: var(--navy); color: white;
+      border: none; border-radius: 9px; font-size: 14.5px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: background .18s; margin-top: 6px;
+    }
+    .btn-login:hover { background: var(--blue); }
+
+    @media(max-width:768px) {
+      .left-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="left-panel">
+    <div class="brand">
+      <div class="brand-icon">B</div>
+      <div class="brand-name">Banking<span>DB</span></div>
+    </div>
+    <div class="tagline">Secure access to your <em>financial</em> world.</div>
+    <p class="left-desc">
+      Manage savings, checking, and money market accounts. Track loan repayments
+      and monitor every transaction — all in one place.
+    </p>
+  </div>
+
+  <div class="right-panel">
+    <div class="login-box">
+      <h2>Welcome back</h2>
+      <p>Sign in to access your BankingDB account.</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username"
+                 placeholder="Enter your username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password"
+                 placeholder="Enter your password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login">Sign In →</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
