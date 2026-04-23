@@ -9,7 +9,7 @@ A full-stack banking database application built with **PostgreSQL 16**, **Docker
 
 BankingDB models a multi-branch bank with customers, employees, accounts, loans, and financial transactions. The web application provides three core views:
 
-- **Customer view** — log in to see your own accounts, balances, transaction history, and transfer funds between your accounts
+- **Customer view** — log in to see your own accounts, balances, transaction history, deposit funds, send money to other customers, and transfer between your own accounts
 - **Admin view** — bank-wide overview of all customers, accounts, and branches, with the ability to transfer funds on behalf of any customer
 - **Account detail view** — full transaction history and account-specific information for any account
 
@@ -22,6 +22,7 @@ cs631_termproject/
 │
 ├── docker-compose.yml          # PostgreSQL 16 + pgAdmin 4 services
 ├── deploy_bankingdb.py         # Deploys DB containers, schema, and seed data
+├── add_phone_number.sql        # Migration: adds phone_number to Customer table
 ├── pgpass                      # pgAdmin auto-authentication file
 ├── pgadmin_servers.json        # pgAdmin pre-configured server entry
 ├── requirements.txt            # Dependencies for deploy script
@@ -34,8 +35,9 @@ cs631_termproject/
         ├── login.html                    # Login page
         ├── customer_dashboard.html       # Customer account overview
         ├── account_detail.html           # Account and transaction detail
-        ├── deposit.html                  # Customer deposit form
-        ├── transfer.html                 # Customer fund transfer form
+        ├── deposit.html                  # Deposit funds into an account
+        ├── send.html                     # Send money by phone number (Zelle-style)
+        ├── transfer.html                 # Transfer between own accounts
         ├── admin_dashboard.html          # Admin bank-wide overview
         ├── admin_accounts.html           # All accounts with search/filter
         ├── admin_customer_detail.html    # Admin customer profile
@@ -47,24 +49,25 @@ cs631_termproject/
 ## Application Features
 
 ### Customer
-- View all linked accounts (Savings, Checking, Money Market, Loan)
+- View all linked accounts — Savings, Checking, Money Market, and Loan
 - Account balances, interest rates, overdraft limits, and loan repayment details
 - Full transaction history per account
-- **Deposit funds** into any non-loan account with optional description and quick-amount buttons
-- **Transfer funds** between any two non-loan accounts
+- **Deposit** — add funds to any non-loan account with quick-amount buttons and an optional description
+- **Send Money** — send funds to any other BankingDB customer by entering their registered phone number (Zelle-style). The recipient is found by phone lookup and funds are credited to their primary account automatically
+- **Transfer** — move funds between your own accounts (non-loan only)
 
 ### Admin
 - Bank-wide statistics — total assets, deposits, customer and account counts
 - Account type breakdown and branch summary tables
 - Browse and search all accounts across all branches
-- View individual customer profiles with full account details
-- **Transfer funds on behalf of any customer** — select a customer, choose source and destination accounts, and execute the transfer
+- View individual customer profiles with phone number, address, and account details
+- **Transfer on behalf of customer** — select a customer, choose source and destination accounts, and execute the transfer
 
-### Transfers
-- Real-time balance validation before submission
-- Loan accounts are excluded from transfers
-- Every transfer creates two transaction log entries (`TRO` — Transfer Out, `TRI` — Transfer In)
+### Transactions
+- Every deposit, send, and transfer creates transaction log entries with descriptive names
+- Transaction codes: `CD` Deposit · `SND` Send · `RCV` Receive · `TRO` Transfer Out · `TRI` Transfer In
 - Admin-initiated transfers are labelled distinctly in the transaction log
+- Loan accounts are excluded from all deposit, send, and transfer operations
 
 ---
 
@@ -168,6 +171,11 @@ python3 deploy_bankingdb.py
 | `python3 deploy_bankingdb.py --reset` | Wipe and redeploy from scratch |
 | `python3 deploy_bankingdb.py --stop` | Stop containers (data preserved) |
 | `python3 deploy_bankingdb.py --stop --volumes` | Stop and delete all data |
+
+> **Note:** If the database was previously deployed without the `phone_number` column, run the migration script before starting the web app:
+> ```bash
+> psql -h localhost -p 5433 -U bankadmin bankingdb -f add_phone_number.sql
+> ```
 
 ### 2. Start the Web Application
 
