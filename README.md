@@ -9,7 +9,7 @@ A full-stack banking database application built with **PostgreSQL 16**, **Docker
 
 BankingDB models a multi-branch bank with customers, employees, accounts, loans, and financial transactions. The web application provides three core views:
 
-- **Customer view** — log in to see your own accounts, balances, transaction history, deposit funds, send money to other customers, and transfer between your own accounts
+- **Customer view** — register and open an account, log in to see accounts, balances, transaction history, deposit funds, send money to other customers, and transfer between your own accounts
 - **Admin view** — bank-wide overview of all customers, accounts, and branches, with the ability to transfer funds on behalf of any customer
 - **Account detail view** — full transaction history and account-specific information for any account
 
@@ -32,7 +32,8 @@ cs631_termproject/
     ├── requirements.txt        # Dependencies for web app
     └── templates/
         ├── base.html                     # Shared layout and navigation
-        ├── login.html                    # Login page
+        ├── login.html                    # Login page with Open Account link
+        ├── register.html                 # 5-step account registration wizard
         ├── customer_dashboard.html       # Customer account overview
         ├── account_detail.html           # Account and transaction detail
         ├── deposit.html                  # Deposit funds into an account
@@ -47,6 +48,16 @@ cs631_termproject/
 ---
 
 ## Application Features
+
+### Account Registration
+- New customers can open an account directly from the login page via a **5-step wizard**:
+  1. **Account Type** — choose Savings (1.50% p.a.), Checking, or Money Market (4.00% variable)
+  2. **Branch Location** — select from all available branches
+  3. **Personal Details** — name, SSN (auto-formatted), phone number, full address
+  4. **Login Details** — choose a username, password (with live strength indicator), and confirmation
+  5. **Review & Open** — summary of all selections before submitting
+- On success the account is created, the customer record is inserted, and the user is automatically logged in
+- Loan accounts require branch approval and cannot be self-registered
 
 ### Customer
 - View all linked accounts — Savings, Checking, Money Market, and Loan
@@ -68,6 +79,10 @@ cs631_termproject/
 - Transaction codes: `CD` Deposit · `SND` Send · `RCV` Receive · `TRO` Transfer Out · `TRI` Transfer In
 - Admin-initiated transfers are labelled distinctly in the transaction log
 - Loan accounts are excluded from all deposit, send, and transfer operations
+
+### Database Notes
+- The `app_users` table is created automatically the **first time `python app.py` is run** — it will not appear in pgAdmin until the web app has been started at least once
+- To query it in pgAdmin use: `SELECT * FROM app_users;`
 
 ---
 
@@ -188,6 +203,8 @@ python3 app.py
 ```
 
 Open your browser and go to **[http://localhost:5055](http://localhost:5055)**
+
+> The `app_users` table is created automatically on first startup.
 
 ---
 
