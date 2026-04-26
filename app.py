@@ -219,6 +219,177 @@ def dashboard():
     return redirect(url_for('customer_dashboard'))
 
 
+# ── Register (Open Account) ───────────────────────────────────────
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    # Always fetch branches for the form
+    branches = query("SELECT branch_id, branch_name, city, address_state FROM Branch ORDER BY branch_name")
+
+    if request.method == 'POST':
+        # ── Collect form data ────────────────────────────────────
+        first_name   = request.form.get('first_name',  '').strip()
+        last_name    = request.form.get('last_name',   '').strip()
+        ssn          = request.form.get('ssn',         '').strip()
+        phone        = request.form.get('phone',       '').strip()
+        apt_no       = request.form.get('apt_no',      '').strip() or None
+        street_no    = request.form.get('street_no',   '').strip()
+        street_name  = request.form.get('street_name', '').strip()
+        city         = request.form.get('city',        '').strip()
+        state        = request.form.get('state',       '').strip().upper()
+        zip_code     = request.form.get('zip_code',    '').strip()
+        branch_id    = request.form.get('branch_id',   type=int)
+        account_type = request.form.get('account_type','').strip()
+        username     = request.form.get('username',    '').strip()
+        password     = request.form.get('password',   '')
+        confirm_pw   = request.form.get('confirm_password', '')
+
+        errors = []
+
+        # ── Validate ─────────────────────────────────────────────
+        import re
+        if not first_name:
+            errors.append('First name is required.')
+        if not last_name:
+            errors.append('Last name is required.')
+        if not re.match(r'^\d{3}-\d{2}-\d{4}$', ssn):
+            errors.append('SSN must be in the format XXX-XX-XXXX.')
+        if not phone:
+            errors.append('Phone number is required.')
+        if not street_no:
+            errors.append('Street number is required.')
+        if not street_name:
+            errors.append('Street name is required.')
+        if not city:
+            errors.append('City is required.')
+        if not state or len(state) != 2:
+            errors.append('State must be a 2-letter abbreviation (e.g. NY).')
+        if not zip_code:
+            errors.append('Zip code is required.')
+        if not branch_id:
+            errors.append('Please select a branch.')
+        if account_type not in ('SAVINGS', 'CHECKING', 'MONEY_MARKET'):
+            errors.append('Please select a valid account type.')
+        if not username or len(username) < 3:
+            errors.append('Username must be at least 3 characters.')
+        if not password or len(password) < 6:
+            errors.append('Password must be at least 6 characters.')
+        if password != confirm_pw:
+            errors.append('Passwords do not match.')
+
+        # Check uniqueness
+        if not errors:
+            existing_ssn = query(
+                "SELECT 1 FROM Customer WHERE ssn = %s", (ssn,), one=True
+            )
+            if existing_ssn:
+                errors.append('A customer with that SSN already exists.')
+
+            existing_username = query(
+                "SELECT 1 FROM app_users WHERE username = %s", (username,), one=True
+            )
+            if existing_username:
+                errors.append('That username is already taken. Please choose another.')
+
+            existing_phone = query(
+                "SELECT 1 FROM Customer WHERE phone_number = %s", (phone,), one=True
+            )
+            if existing_phone:
+                errors.append('That phone number is already registered to another account.')
+
+        if errors:
+            for e in errors:
+                flash(e, 'danger')
+            return render_template('register.html',
+                                   branches=branches,
+                                   form=request.form)
+
+        # ── Create customer, account, and login in one transaction ─
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                # 1. Insert Customer
+                cur.execute(
+                    """INSERT INTO Customer
+                           (ssn, first_name, last_name, apt_no, street_no,
+                            street_name, city, state, zip_code, phone_number,
+                            branch_id)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (ssn, first_name, last_name, apt_no, street_no,
+                     street_name, city, state, zip_code, phone, branch_id)
+                )
+
+                # 2. Create Account (supertype)
+                cur.execute(
+                    """INSERT INTO Account (account_type, balance, open_date)
+                       VALUES (%s::account_type_enum, 0.00, CURRENT_DATE)
+                       RETURNING account_no""",
+                    (account_type,)
+                )
+                account_no = cur.fetchone()['account_no']
+
+                # 3. Create subtype row
+                if account_type == 'SAVINGS':
+                    cur.execute(
+                        "INSERT INTO Savings_Account VALUES (%s, 0.0150)",
+                        (account_no,)
+                    )
+                elif account_type == 'CHECKING':
+                    cur.execute(
+                        "INSERT INTO Checking_Account VALUES (%s, 0.00)",
+                        (account_no,)
+                    )
+                elif account_type == 'MONEY_MARKET':
+                    cur.execute(
+                        "INSERT INTO MoneyMarket_Account (account_no, current_interest_rate, last_rate_update) VALUES (%s, 0.0400, NOW())",
+                        (account_no,)
+                    )
+
+                # 4. Link customer to account
+                cur.execute(
+                    """INSERT INTO Customer_Account (customer_ssn, account_no, last_access_date)
+                       VALUES (%s, %s, CURRENT_DATE)""",
+                    (ssn, account_no)
+                )
+
+                # 5. Create web login
+                cur.execute(
+                    """INSERT INTO app_users (username, password_hash, role, customer_ssn)
+                       VALUES (%s, %s, 'customer', %s)
+                       RETURNING id""",
+                    (username, hash_password(password), ssn)
+                )
+                user_id = cur.fetchone()['id']
+
+            conn.commit()
+
+            # Auto-login after registration
+            session.clear()
+            session['user_id']      = user_id
+            session['username']     = username
+            session['role']         = 'customer'
+            session['customer_ssn'] = ssn
+
+            flash(
+                f'Welcome, {first_name}! Your {account_type.replace("_"," ").title()} '
+                f'account has been opened successfully.',
+                'success'
+            )
+            return redirect(url_for('customer_dashboard'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f'Registration failed: {str(e)}', 'danger')
+            return render_template('register.html',
+                                   branches=branches,
+                                   form=request.form)
+
+    return render_template('register.html', branches=branches, form={})
+
+
 # ── Customer Dashboard ────────────────────────────────────────────
 
 @app.route('/customer')

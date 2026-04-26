@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open an Account — BankingDB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #0f1f3d;
+      --blue:   #1a3a6b;
+      --mid:    #2e5fa3;
+      --accent: #3b82f6;
+      --gold:   #c9a84c;
+      --green:  #16a34a;
+      --danger: #dc2626;
+      --border: #d1dbe8;
+      --muted:  #64748b;
+      --bg:     #f0f4f8;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 32px 16px 60px;
+      color: #1e293b;
+    }
+
+    /* ── Page header ───────────────────────────────────────── */
+    .page-top {
+      max-width: 860px; margin: 0 auto 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .brand-icon {
+      width: 38px; height: 38px; background: var(--navy);
+      border-radius: 9px; display: flex; align-items: center;
+      justify-content: center; font-family: 'DM Serif Display', serif;
+      font-size: 18px; color: var(--gold);
+    }
+    .brand-name {
+      font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--navy);
+    }
+    .brand-name span { color: var(--gold); }
+    .login-link {
+      font-size: 13.5px; color: var(--mid); text-decoration: none; font-weight: 500;
+    }
+    .login-link:hover { text-decoration: underline; }
+
+    /* ── Card ──────────────────────────────────────────────── */
+    .card {
+      max-width: 860px; margin: 0 auto;
+      background: white; border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(15,31,61,.07), 0 8px 32px rgba(15,31,61,.05);
+      overflow: hidden;
+    }
+    .card-header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+      padding: 28px 36px; color: white;
+    }
+    .card-header h1 {
+      font-family: 'DM Serif Display', serif; font-size: 26px; margin-bottom: 4px;
+    }
+    .card-header p { font-size: 13.5px; color: rgba(255,255,255,.65); }
+
+    /* ── Step bar ──────────────────────────────────────────── */
+    .steps {
+      display: flex; background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-tab {
+      flex: 1; padding: 14px 10px; text-align: center;
+      font-size: 12.5px; font-weight: 600; color: var(--muted);
+      border-bottom: 3px solid transparent;
+      cursor: pointer; transition: all .18s;
+    }
+    .step-tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+    .step-tab.done   { color: var(--green); border-bottom-color: var(--green); }
+    .step-tab span { display: block; font-size: 10px; font-weight: 400;
+                     text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+
+    /* ── Form body ─────────────────────────────────────────── */
+    .card-body { padding: 32px 36px; }
+
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px;
+    }
+    .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+    .form-grid.full  { grid-template-columns: 1fr; }
+    .span-2 { grid-column: 1 / -1; }
+
+    .form-group { display: flex; flex-direction: column; }
+    label {
+      font-size: 12px; font-weight: 700; color: var(--navy);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
+    }
+    label .opt { font-weight: 400; text-transform: none;
+                 letter-spacing: 0; color: var(--muted); }
+    input[type=text], input[type=password], input[type=tel],
+    input[type=email], select {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-size: 14px; font-family: inherit; color: #1e293b;
+      background: #f8fafc; outline: none;
+      transition: border-color .18s, box-shadow .18s;
+      appearance: none;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent); background: white;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+    }
+    .field-hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+
+    /* ── Account type cards ────────────────────────────────── */
+    .acct-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+      margin-bottom: 8px;
+    }
+    .acct-card {
+      border: 2px solid var(--border); border-radius: 12px;
+      padding: 18px 14px; cursor: pointer; transition: all .18s;
+      text-align: center; position: relative;
+    }
+    .acct-card:hover { border-color: var(--accent); background: #f0f6ff; }
+    .acct-card.selected {
+      border-color: var(--accent); background: #eff6ff;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+    .acct-card input[type=radio] {
+      position: absolute; opacity: 0; width: 0; height: 0;
+    }
+    .acct-icon { font-size: 28px; margin-bottom: 8px; }
+    .acct-name { font-size: 13.5px; font-weight: 700; color: var(--navy); }
+    .acct-desc { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .acct-rate { font-size: 12px; font-weight: 600; color: var(--green); margin-top: 6px; }
+
+    /* ── Branch cards ──────────────────────────────────────── */
+    .branch-list { display: flex; flex-direction: column; gap: 10px; }
+    .branch-card {
+      border: 2px solid var(--border); border-radius: 10px;
+      padding: 14px 18px; cursor: pointer; transition: all .18s;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .branch-card:hover { border-color: var(--accent); background: #f0f6ff; }
+    .branch-card.selected { border-color: var(--accent); background: #eff6ff; }
+    .branch-card input[type=radio] { width: 18px; height: 18px;
+                                      accent-color: var(--accent); flex-shrink: 0; }
+    .branch-info .branch-name { font-size: 14px; font-weight: 600; color: var(--navy); }
+    .branch-info .branch-addr { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Password strength ─────────────────────────────────── */
+    .strength-bar {
+      height: 4px; border-radius: 2px; background: var(--border);
+      margin-top: 8px; overflow: hidden;
+    }
+    .strength-fill {
+      height: 100%; border-radius: 2px; width: 0;
+      transition: width .25s, background .25s;
+    }
+
+    /* ── Flash messages ────────────────────────────────────── */
+    .flash-list { list-style: none; margin-bottom: 20px; }
+    .flash-danger {
+      background: #fee2e2; border-left: 4px solid var(--danger);
+      color: #7f1d1d; padding: 11px 14px; border-radius: 8px;
+      font-size: 13.5px; margin-bottom: 8px;
+    }
+
+    /* ── Navigation buttons ────────────────────────────────── */
+    .btn-row {
+      display: flex; gap: 12px; margin-top: 28px;
+      justify-content: space-between; flex-wrap: wrap;
+    }
+    .btn {
+      padding: 12px 24px; border-radius: 9px; font-size: 14px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      border: none; transition: all .18s;
+    }
+    .btn-primary { background: var(--navy); color: white; }
+    .btn-primary:hover { background: var(--blue); }
+    .btn-outline {
+      background: transparent; color: var(--mid);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--mid); }
+    .btn-success { background: var(--green); color: white; width: 100%; }
+    .btn-success:hover { background: #15803d; }
+
+    /* ── Summary review ────────────────────────────────────── */
+    .review-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .review-section {
+      background: var(--bg); border-radius: 10px;
+      padding: 16px 20px; border: 1px solid var(--border);
+    }
+    .review-section h4 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .7px;
+      color: var(--muted); margin-bottom: 12px;
+    }
+    .review-row { display: flex; justify-content: space-between;
+                  font-size: 13.5px; margin-bottom: 7px; }
+    .review-row .rv { font-weight: 600; color: var(--navy); }
+    .review-acct {
+      background: linear-gradient(135deg, var(--navy), var(--blue));
+      border-radius: 10px; padding: 18px 20px; color: white;
+      grid-column: 1 / -1; display: flex; align-items: center; gap: 14px;
+    }
+    .review-acct-icon { font-size: 32px; }
+    .review-acct-type { font-family: 'DM Serif Display', serif; font-size: 20px; }
+    .review-acct-branch { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 2px; }
+
+    @media(max-width:600px) {
+      .card-body { padding: 20px 18px; }
+      .form-grid, .form-grid.three { grid-template-columns: 1fr; }
+      .acct-grid { grid-template-columns: 1fr; }
+      .review-grid { grid-template-columns: 1fr; }
+      .review-acct { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="page-top">
+    <a href="{{ url_for('login') }}" class="brand">
+      <div class="brand-icon">B</div>
+      <span class="brand-name">Banking<span>DB</span></span>
+    </a>
+    <a href="{{ url_for('login') }}" class="login-link">← Back to Sign In</a>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h1>Open a New Account</h1>
+      <p>Choose your account type, select a branch, enter your details, and you're ready to go.</p>
+    </div>
+
+    <!-- Step tabs -->
+    <div class="steps">
+      <div class="step-tab active" id="tab1"><span>Step 1</span>Account Type</div>
+      <div class="step-tab"        id="tab2"><span>Step 2</span>Branch Location</div>
+      <div class="step-tab"        id="tab3"><span>Step 3</span>Personal Details</div>
+      <div class="step-tab"        id="tab4"><span>Step 4</span>Login Details</div>
+      <div class="step-tab"        id="tab5"><span>Step 5</span>Review & Open</div>
+    </div>
+
+    <div class="card-body">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list">
+            {% for category, message in messages %}
+              <li class="flash-{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('register') }}" id="regForm">
+
+        <!-- ── STEP 1: Account Type ──────────────────────────── -->
+        <div class="step-panel active" id="panel1">
+          <div class="acct-grid">
+
+            <label class="acct-card {% if form.get('account_type') == 'SAVINGS' %}selected{% endif %}" id="card-SAVINGS">
+              <input type="radio" name="account_type" value="SAVINGS"
+                     {% if form.get('account_type','SAVINGS') == 'SAVINGS' %}checked{% endif %}
+                     onchange="selectAcct('SAVINGS')">
+              <div class="acct-icon">🏦</div>
+              <div class="acct-name">Savings</div>
+              <div class="acct-desc">Earn interest on your deposits with a fixed annual rate.</div>
+              <div class="acct-rate">1.50% p.a.</div>
+            </label>
+
+            <label class="acct-card {% if form.get('account_type') == 'CHECKING' %}selected{% endif %}" id="card-CHECKING">
+              <input type="radio" name="account_type" value="CHECKING"
+                     {% if form.get('account_type') == 'CHECKING' %}checked{% endif %}
+                     onchange="selectAcct('CHECKING')">
+              <div class="acct-icon">💳</div>
+              <div class="acct-name">Checking</div>
+              <div class="acct-desc">Day-to-day spending with debit access and overdraft protection.</div>
+              <div class="acct-rate" style="color:var(--mid);">No monthly fee</div>
+            </label>
+
+            <label class="acct-card {% if form.get('account_type') == 'MONEY_MARKET' %}selected{% endif %}" id="card-MONEY_MARKET">
+              <input type="radio" name="account_type" value="MONEY_MARKET"
+                     {% if form.get('account_type') == 'MONEY_MARKET' %}checked{% endif %}
+                     onchange="selectAcct('MONEY_MARKET')">
+              <div class="acct-icon">📈</div>
+              <div class="acct-name">Money Market</div>
+              <div class="acct-desc">Higher variable rate tied to market performance. Ideal for larger balances.</div>
+              <div class="acct-rate">4.00% variable</div>
+            </label>
+
+          </div>
+          <div class="btn-row" style="justify-content:flex-end;">
+            <button type="button" class="btn btn-primary" onclick="goTo(2)">Next: Choose Branch →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: Branch ────────────────────────────────── -->
+        <div class="step-panel" id="panel2">
+          <div class="branch-list">
+            {% for b in branches %}
+            <label class="branch-card {% if form.get('branch_id')|int == b.branch_id %}selected{% endif %}"
+                   id="branch-{{ b.branch_id }}"
+                   onclick="selectBranch({{ b.branch_id }})">
+              <input type="radio" name="branch_id" value="{{ b.branch_id }}"
+                     {% if form.get('branch_id')|int == b.branch_id %}checked{% endif %}
+                     onchange="selectBranch({{ b.branch_id }})">
+              <div class="branch-info">
+                <div class="branch-name">🏢 {{ b.branch_name }}</div>
+                <div class="branch-addr">{{ b.city }}, {{ b.address_state }}</div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-outline" onclick="goTo(1)">← Back</button>
+            <button type="button" class="btn btn-primary" onclick="goTo(3)">Next: Personal Details →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 3: Personal Details ──────────────────────── -->
+        <div class="step-panel" id="panel3">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="first_name">First Name</label>
+              <input type="text" id="first_name" name="first_name"
+                     value="{{ form.get('first_name','') }}" required
+                     placeholder="Nancy">
+            </div>
+            <div class="form-group">
+              <label for="last_name">Last Name</label>
+              <input type="text" id="last_name" name="last_name"
+                     value="{{ form.get('last_name','') }}" required
+                     placeholder="Green">
+            </div>
+            <div class="form-group">
+              <label for="ssn">Social Security Number</label>
+              <input type="text" id="ssn" name="ssn"
+                     value="{{ form.get('ssn','') }}" required
+                     placeholder="XXX-XX-XXXX" maxlength="11"
+                     oninput="fmtSSN(this)">
+              <div class="field-hint">Format: 123-45-6789</div>
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" name="phone"
+                     value="{{ form.get('phone','') }}" required
+                     placeholder="212-555-0100">
+              <div class="field-hint">Used for Zelle-style peer payments</div>
+            </div>
+          </div>
+
+          <div style="margin:20px 0 8px;font-size:12px;font-weight:700;color:var(--navy);
+                      text-transform:uppercase;letter-spacing:.5px;">Home Address</div>
+          <div class="form-grid three">
+            <div class="form-group">
+              <label for="apt_no">Apt / Unit <span class="opt">(optional)</span></label>
+              <input type="text" id="apt_no" name="apt_no"
+                     value="{{ form.get('apt_no','') }}" placeholder="4A">
+            </div>
+            <div class="form-group">
+              <label for="street_no">Street Number</label>
+              <input type="text" id="street_no" name="street_no"
+                     value="{{ form.get('street_no','') }}" required placeholder="88">
+            </div>
+            <div class="form-group">
+              <label for="street_name">Street Name</label>
+              <input type="text" id="street_name" name="street_name"
+                     value="{{ form.get('street_name','') }}" required placeholder="Park Avenue">
+            </div>
+            <div class="form-group">
+              <label for="city">City</label>
+              <input type="text" id="city" name="city"
+                     value="{{ form.get('city','') }}" required placeholder="New York">
+            </div>
+            <div class="form-group">
+              <label for="state">State</label>
+              <input type="text" id="state" name="state"
+                     value="{{ form.get('state','') }}" required
+                     placeholder="NY" maxlength="2"
+                     oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div class="form-group">
+              <label for="zip_code">Zip Code</label>
+              <input type="text" id="zip_code" name="zip_code"
+                     value="{{ form.get('zip_code','') }}" required
+                     placeholder="10016" maxlength="10">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-outline" onclick="goTo(2)">← Back</button>
+            <button type="button" class="btn btn-primary" onclick="validateStep3()">Next: Login Details →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 4: Login Details ─────────────────────────── -->
+        <div class="step-panel" id="panel4">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label for="username">Username</label>
+              <input type="text" id="username" name="username"
+                     value="{{ form.get('username','') }}" required
+                     placeholder="e.g. john.doe" minlength="3"
+                     autocomplete="username"
+                     oninput="updateReview()">
+              <div class="field-hint">Minimum 3 characters. You will use this to log in.</div>
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" name="password"
+                     required placeholder="At least 6 characters"
+                     minlength="6" autocomplete="new-password"
+                     oninput="checkStrength(); updateReview()">
+              <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+              <div class="field-hint" id="strengthLabel">Enter a password</div>
+            </div>
+            <div class="form-group">
+              <label for="confirm_password">Confirm Password</label>
+              <input type="password" id="confirm_password" name="confirm_password"
+                     required placeholder="Re-enter password"
+                     autocomplete="new-password"
+                     oninput="checkMatch()">
+              <div class="field-hint" id="matchLabel"></div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-outline" onclick="goTo(3)">← Back</button>
+            <button type="button" class="btn btn-primary" onclick="validateStep4()">Next: Review →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 5: Review ────────────────────────────────── -->
+        <div class="step-panel" id="panel5">
+          <div class="review-grid" id="reviewGrid">
+            <!-- filled by JS -->
+          </div>
+          <div class="btn-row" style="margin-top:24px;">
+            <button type="button" class="btn btn-outline" onclick="goTo(4)">← Edit</button>
+            <button type="submit" class="btn btn-success">✓ Open My Account</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+<script>
+  const BRANCHES = {
+    {% for b in branches %}
+    {{ b.branch_id }}: { name: '{{ b.branch_name }}', city: '{{ b.city }}', state: '{{ b.address_state }}' },
+    {% endfor %}
+  };
+  const ACCT_NAMES = {
+    SAVINGS: 'Savings Account',
+    CHECKING: 'Checking Account',
+    MONEY_MARKET: 'Money Market Account',
+  };
+  const ACCT_ICONS = { SAVINGS:'🏦', CHECKING:'💳', MONEY_MARKET:'📈' };
+
+  let currentStep = 1;
+
+  // If form was re-submitted with errors, jump to the first error section
+  {% if form %}
+  window.addEventListener('load', () => { updateReview(); buildReview(); });
+  {% endif %}
+
+  function goTo(n) {
+    document.getElementById(`panel${currentStep}`).classList.remove('active');
+    document.getElementById(`tab${currentStep}`).classList.remove('active');
+    document.getElementById(`tab${currentStep}`).classList.add('done');
+    currentStep = n;
+    document.getElementById(`panel${n}`).classList.add('active');
+    document.querySelectorAll('.step-tab').forEach((t,i) => {
+      t.classList.toggle('active', i+1 === n);
+      if (i+1 < n) t.classList.add('done');
+    });
+    if (n === 5) buildReview();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function selectAcct(val) {
+    document.querySelectorAll('.acct-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('card-'+val).classList.add('selected');
+  }
+
+  function selectBranch(id) {
+    document.querySelectorAll('.branch-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('branch-'+id).classList.add('selected');
+  }
+
+  function fmtSSN(el) {
+    let v = el.value.replace(/\D/g,'');
+    if (v.length > 3) v = v.slice(0,3)+'-'+v.slice(3);
+    if (v.length > 6) v = v.slice(0,6)+'-'+v.slice(6);
+    el.value = v.slice(0,11);
+  }
+
+  function checkStrength() {
+    const pw = document.getElementById('password').value;
+    const fill = document.getElementById('strengthFill');
+    const lbl  = document.getElementById('strengthLabel');
+    let score = 0;
+    if (pw.length >= 6)  score++;
+    if (pw.length >= 10) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const levels = [
+      {w:'0%',   c:'#ef4444', l:'Too short'},
+      {w:'25%',  c:'#ef4444', l:'Weak'},
+      {w:'50%',  c:'#f97316', l:'Fair'},
+      {w:'75%',  c:'#eab308', l:'Good'},
+      {w:'90%',  c:'#22c55e', l:'Strong'},
+      {w:'100%', c:'#16a34a', l:'Very strong'},
+    ];
+    const lvl = levels[Math.min(score, 5)];
+    fill.style.width = lvl.w;
+    fill.style.background = lvl.c;
+    lbl.textContent = pw ? lvl.l : 'Enter a password';
+    lbl.style.color = pw ? lvl.c : 'var(--muted)';
+  }
+
+  function checkMatch() {
+    const pw  = document.getElementById('password').value;
+    const cpw = document.getElementById('confirm_password').value;
+    const lbl = document.getElementById('matchLabel');
+    if (!cpw) { lbl.textContent=''; return; }
+    if (pw === cpw) {
+      lbl.textContent = '✓ Passwords match';
+      lbl.style.color = 'var(--green)';
+    } else {
+      lbl.textContent = '✗ Passwords do not match';
+      lbl.style.color = 'var(--danger)';
+    }
+  }
+
+  function validateStep3() {
+    const required = ['first_name','last_name','ssn','phone','street_no','street_name','city','state','zip_code'];
+    for (const id of required) {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) {
+        el.focus();
+        el.style.borderColor = 'var(--danger)';
+        setTimeout(()=>el.style.borderColor='', 2000);
+        return;
+      }
+    }
+    const branch = document.querySelector('input[name=branch_id]:checked');
+    if (!branch) { alert('Please select a branch.'); return; }
+    updateReview();
+    goTo(4);
+  }
+
+  function validateStep4() {
+    const pw  = document.getElementById('password').value;
+    const cpw = document.getElementById('confirm_password').value;
+    const usr = document.getElementById('username').value.trim();
+    if (!usr || usr.length < 3) {
+      alert('Username must be at least 3 characters.'); return;
+    }
+    if (!pw || pw.length < 6) {
+      alert('Password must be at least 6 characters.'); return;
+    }
+    if (pw !== cpw) {
+      alert('Passwords do not match.'); return;
+    }
+    goTo(5);
+  }
+
+  function updateReview() { /* placeholder — called on input */ }
+
+  function buildReview() {
+    const acct    = document.querySelector('input[name=account_type]:checked');
+    const branch  = document.querySelector('input[name=branch_id]:checked');
+    const fn      = document.getElementById('first_name').value;
+    const ln      = document.getElementById('last_name').value;
+    const ssn     = document.getElementById('ssn').value;
+    const phone   = document.getElementById('phone').value;
+    const stNo    = document.getElementById('street_no').value;
+    const stNm    = document.getElementById('street_name').value;
+    const apt     = document.getElementById('apt_no').value;
+    const city    = document.getElementById('city').value;
+    const state   = document.getElementById('state').value;
+    const zip     = document.getElementById('zip_code').value;
+    const uname   = document.getElementById('username').value;
+
+    const acctVal    = acct   ? acct.value   : '—';
+    const branchId   = branch ? branch.value : null;
+    const branchInfo = branchId ? BRANCHES[branchId] : null;
+
+    const grid = document.getElementById('reviewGrid');
+    grid.innerHTML = `
+      <div class="review-acct">
+        <div class="review-acct-icon">${ACCT_ICONS[acctVal]||'💰'}</div>
+        <div>
+          <div class="review-acct-type">${ACCT_NAMES[acctVal]||acctVal}</div>
+          <div class="review-acct-branch">
+            ${branchInfo ? branchInfo.name+' — '+branchInfo.city+', '+branchInfo.state : '—'}
+          </div>
+        </div>
+      </div>
+      <div class="review-section">
+        <h4>Personal Information</h4>
+        <div class="review-row"><span>Full Name</span><span class="rv">${fn} ${ln}</span></div>
+        <div class="review-row"><span>SSN</span><span class="rv">${ssn}</span></div>
+        <div class="review-row"><span>Phone</span><span class="rv">${phone}</span></div>
+        <div class="review-row"><span>Address</span><span class="rv">
+          ${stNo} ${stNm}${apt?', Apt '+apt:''}, ${city}, ${state} ${zip}
+        </span></div>
+      </div>
+      <div class="review-section">
+        <h4>Login Details</h4>
+        <div class="review-row"><span>Username</span><span class="rv">${uname}</span></div>
+        <div class="review-row"><span>Password</span><span class="rv">••••••••</span></div>
+      </div>
+    `;
+  }
+
+  // Pre-select account type visual on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const checked = document.querySelector('input[name=account_type]:checked');
+    if (checked) selectAcct(checked.value);
+    const bChecked = document.querySelector('input[name=branch_id]:checked');
+    if (bChecked) selectBranch(parseInt(bChecked.value));
+  });
+</script>
+</body>
+</html>

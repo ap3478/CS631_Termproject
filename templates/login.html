@@ -144,6 +144,17 @@
                  placeholder="Enter your password" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn-login">Sign In →</button>
+
+        <div style="text-align:center;margin-top:20px;padding-top:18px;
+                    border-top:1px solid #e2e8f0;">
+          <p style="font-size:13.5px;color:#64748b;">
+            New to BankingDB?
+            <a href="{{ url_for('register') }}"
+               style="color:#1a3a6b;font-weight:600;text-decoration:none;">
+              Open an Account →
+            </a>
+          </p>
+        </div>
       </form>
     </div>
   </div>
