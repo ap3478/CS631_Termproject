@@ -208,6 +208,44 @@ Open your browser and go to **[http://localhost:5055](http://localhost:5055)**
 
 ---
 
+## Database Triggers
+
+Seven `BEFORE`/`AFTER DELETE` triggers enforce data integrity at the database level, independently of the application layer.
+
+| Trigger | Table | Protects |
+|---------|-------|---------|
+| `trg_prevent_savings_deletion` | `savings_account` | Block delete if balance > $0.00 |
+| `trg_prevent_checking_deletion` | `checking_account` | Block delete if balance > $0.00 |
+| `trg_prevent_mm_deletion` | `moneymarket_account` | Block delete if balance > $0.00 |
+| `trg_prevent_loan_deletion` | `loan_account` | Block delete if balance > $0.00 |
+| `trg_prevent_account_deletion` | `account` | Block delete of any account type with balance > $0.00 |
+| `trg_prevent_customer_deletion` | `customer` | Block delete if any linked account has balance > $0.00 |
+| `trg_cleanup_orphaned_account` | `customer_account` | Auto-delete account when last customer link is removed and balance = $0.00 |
+
+Triggers are created automatically during `python3 deploy_bankingdb.py`. To apply them to an existing database:
+
+```bash
+psql -h localhost -p 5433 -U bankadmin bankingdb -f add_loan_balance_protection.sql
+```
+
+### Verify triggers are active
+
+Run in pgAdmin or psql:
+
+```sql
+SELECT trigger_name,
+       event_object_table AS "table",
+       event_manipulation AS "event",
+       action_timing      AS "timing"
+FROM   information_schema.triggers
+WHERE  trigger_schema = 'public'
+ORDER  BY event_object_table, trigger_name;
+```
+
+You should see **7 rows** — one for each trigger listed above. For full documentation of each trigger see `TRIGGERS.md`.
+
+---
+
 ## Services
 
 | Service | URL |
