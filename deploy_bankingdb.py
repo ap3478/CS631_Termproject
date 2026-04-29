@@ -315,11 +315,10 @@ def _prompt_reset():
     return answer == "y"
 
 
-def wait_for_postgres():
+def wait_for_postgres(already_reset=False):
     """
     Poll until PostgreSQL accepts connections.
-    Shows live container state, captures the actual error message on failure,
-    and runs full diagnostics before exiting.
+    already_reset=True suppresses the auto-reset prompt to prevent loops.
     """
     cfg      = CONFIG
     start    = time.time()
@@ -334,14 +333,12 @@ def wait_for_postgres():
         attempt += 1
         elapsed = int(time.time() - start)
 
-        # Log container state every 15 s so the user can see it's progressing
         if elapsed - last_state_log >= 15:
             state = get_container_state()
             print(f"\r    [{elapsed:3d}s]  Container: {state:<12}  attempt {attempt} …",
                   end="", flush=True)
             last_state_log = elapsed
 
-            # If container crashed, bail early — no point waiting
             if state in ("exited", "dead", "not_found"):
                 print()
                 log(f"Container stopped unexpectedly (state: {state}).", "ERROR")
@@ -358,7 +355,7 @@ def wait_for_postgres():
                 connect_timeout = 3,
             )
             conn.close()
-            print()   # clear the progress line
+            print()
             elapsed = round(time.time() - start, 1)
             log(f"PostgreSQL ready after {elapsed}s ({attempt} attempt(s)).", "OK")
             return
@@ -366,9 +363,16 @@ def wait_for_postgres():
         except psycopg2.OperationalError as e:
             last_err = str(e).strip().splitlines()[0]
 
-            # ── Detect stale-volume password mismatch immediately ──────
-            # No point waiting 120 s — the error will never go away on its own.
+            # ── Stale-volume password mismatch ────────────────────
             if _is_auth_failure(last_err):
+                # If we already reset once this run, don't loop — just
+                # keep waiting. The container may still be initialising.
+                if already_reset:
+                    print(f"\r    [{elapsed:3d}s]  Waiting for fresh init… (attempt {attempt}) …",
+                          end="", flush=True)
+                    time.sleep(3)
+                    continue
+
                 print()
                 log("Authentication failed — stale volume detected.", "ERROR")
                 log(f"Error: {last_err}", "ERROR")
@@ -379,24 +383,26 @@ def wait_for_postgres():
                     section("Auto-Reset: Wiping Volume and Redeploying")
                     compose_down(volumes=True)
                     compose_up()
-                    # Restart the wait from scratch
+                    # Restart wait with already_reset=True so we never prompt again
                     start          = time.time()
                     attempt        = 0
                     last_err       = ""
                     last_state_log = 0
+                    already_reset  = True
                     log(f"Waiting up to {cfg['max_wait_secs']}s for fresh PostgreSQL …", "STEP")
+                    # Give PostgreSQL a head-start before first connection attempt
+                    time.sleep(5)
                     continue
                 else:
                     print()
                     log("Manual fix: run  python deploy_bankingdb.py --reset", "WARN")
                     sys.exit(1)
-            # ──────────────────────────────────────────────────────────
+            # ──────────────────────────────────────────────────────
 
             print(f"\r    [{elapsed:3d}s]  Not ready ({last_err[:60]}) …",
                   end="", flush=True)
             time.sleep(3)
 
-    # ── Timeout ──────────────────────────────────────────────────
     print()
     log(f"Timed out after {cfg['max_wait_secs']}s waiting for PostgreSQL.", "ERROR")
     if last_err:
@@ -656,6 +662,131 @@ DDL_STATEMENTS = [
      "CREATE INDEX idx_txn_code         ON Transaction_Log(transaction_code)"),
     ("Create index: idx_loan_branch",
      "CREATE INDEX idx_loan_branch      ON Loan_Account(branch_id)"),
+
+    # ── Integrity triggers ───────────────────────────────────────────
+    # Single trigger function covers all subtype tables (LOAN, SAVINGS,
+    # CHECKING, MONEY_MARKET) — looks up balance from Account supertype.
+    ("Create trigger function: prevent subtype deletion with balance",
+     """
+     CREATE OR REPLACE FUNCTION prevent_subtype_deletion_with_balance()
+     RETURNS TRIGGER AS $$
+     DECLARE
+         current_balance NUMERIC(18,2);
+         acct_type       TEXT;
+     BEGIN
+         SELECT balance, account_type::TEXT
+           INTO current_balance, acct_type
+           FROM Account
+          WHERE account_no = OLD.account_no;
+
+         IF current_balance IS NOT NULL AND current_balance > 0 THEN
+             RAISE EXCEPTION
+                 'Cannot delete % Account #% — it has an outstanding balance of $%.
+                  The balance must be $0.00 before the account can be closed.',
+                 acct_type, OLD.account_no, current_balance
+                 USING ERRCODE = '23000';
+         END IF;
+
+         RETURN OLD;
+     END;
+     $$ LANGUAGE plpgsql
+     """),
+
+    ("Create trigger: trg_prevent_savings_deletion on Savings_Account",
+     """
+     CREATE TRIGGER trg_prevent_savings_deletion
+         BEFORE DELETE ON Savings_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_subtype_deletion_with_balance()
+     """),
+
+    ("Create trigger: trg_prevent_checking_deletion on Checking_Account",
+     """
+     CREATE TRIGGER trg_prevent_checking_deletion
+         BEFORE DELETE ON Checking_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_subtype_deletion_with_balance()
+     """),
+
+    ("Create trigger: trg_prevent_mm_deletion on MoneyMarket_Account",
+     """
+     CREATE TRIGGER trg_prevent_mm_deletion
+         BEFORE DELETE ON MoneyMarket_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_subtype_deletion_with_balance()
+     """),
+
+    ("Create trigger: trg_prevent_loan_deletion on Loan_Account",
+     """
+     CREATE TRIGGER trg_prevent_loan_deletion
+         BEFORE DELETE ON Loan_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_subtype_deletion_with_balance()
+     """),
+
+    # Also protect the Account supertype row directly —
+    # catches any deletion attempted at the supertype level
+    # (which would otherwise cascade down to the subtype).
+    ("Create trigger function: prevent Account supertype deletion with balance",
+     """
+     CREATE OR REPLACE FUNCTION prevent_account_deletion_with_balance()
+     RETURNS TRIGGER AS $$
+     BEGIN
+         IF OLD.balance > 0 THEN
+             RAISE EXCEPTION
+                 'Cannot delete Account #% (%) — outstanding balance of $%.
+                  The balance must reach $0.00 before this account can be closed.',
+                 OLD.account_no, OLD.account_type::TEXT, OLD.balance
+                 USING ERRCODE = '23000';
+         END IF;
+
+         RETURN OLD;
+     END;
+     $$ LANGUAGE plpgsql
+     """),
+
+    ("Create trigger: trg_prevent_account_deletion on Account",
+     """
+     CREATE TRIGGER trg_prevent_account_deletion
+         BEFORE DELETE ON Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_account_deletion_with_balance()
+     """),
+
+    ("Create trigger function: prevent Customer deletion with account balances",
+     """
+     CREATE OR REPLACE FUNCTION prevent_customer_deletion_with_balance()
+     RETURNS TRIGGER AS $$
+     DECLARE
+         rec RECORD;
+     BEGIN
+         FOR rec IN
+             SELECT a.account_no, a.account_type::TEXT AS account_type, a.balance
+             FROM   Customer_Account ca
+             JOIN   Account a ON ca.account_no = a.account_no
+             WHERE  ca.customer_ssn = OLD.ssn
+               AND  a.balance > 0
+         LOOP
+             RAISE EXCEPTION
+                 'Cannot delete customer % % — Account #% (%) has an outstanding balance of $%.
+                  All account balances must be $0.00 before the customer can be removed.',
+                 OLD.first_name, OLD.last_name,
+                 rec.account_no, rec.account_type, rec.balance
+                 USING ERRCODE = '23000';
+         END LOOP;
+
+         RETURN OLD;
+     END;
+     $$ LANGUAGE plpgsql
+     """),
+
+    ("Create trigger: trg_prevent_customer_deletion on Customer",
+     """
+     CREATE TRIGGER trg_prevent_customer_deletion
+         BEFORE DELETE ON Customer
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_customer_deletion_with_balance()
+     """),
 ]
 
 

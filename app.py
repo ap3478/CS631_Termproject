@@ -397,6 +397,20 @@ def register():
 def customer_dashboard():
     ssn = session['customer_ssn']
 
+    # If the customer has exactly one account, go straight to its detail page
+    account_count = query(
+        "SELECT COUNT(*) AS n FROM Customer_Account WHERE customer_ssn = %s",
+        (ssn,), one=True
+    )
+    if account_count and account_count['n'] == 1:
+        sole_account = query(
+            "SELECT account_no FROM Customer_Account WHERE customer_ssn = %s",
+            (ssn,), one=True
+        )
+        if sole_account:
+            return redirect(url_for('account_detail',
+                                    account_no=sole_account['account_no']))
+
     # Customer profile
     customer = query(
         """SELECT c.*, b.branch_name,
@@ -1034,12 +1048,18 @@ def admin_dashboard():
                   tl.transaction_name, tl.tran_date, tl.tran_time,
                   tl.amount, tl.is_chargeable,
                   a.account_type::TEXT AS account_type,
-                  c.first_name || ' ' || c.last_name AS customer_name
+                  COALESCE(holders.customer_name, 'Unknown') AS customer_name
            FROM   Transaction_Log tl
-           JOIN   Account          a  ON tl.account_no  = a.account_no
-           JOIN   Customer_Account ca ON ca.account_no  = tl.account_no
-           JOIN   Customer          c  ON ca.customer_ssn = c.ssn
-           ORDER BY tl.tran_date DESC, tl.tran_time DESC
+           JOIN   Account a ON tl.account_no = a.account_no
+           LEFT JOIN (
+               SELECT ca.account_no,
+                      STRING_AGG(c.first_name || ' ' || c.last_name, ', '
+                                 ORDER BY c.first_name) AS customer_name
+               FROM   Customer_Account ca
+               JOIN   Customer c ON ca.customer_ssn = c.ssn
+               GROUP BY ca.account_no
+           ) holders ON holders.account_no = tl.account_no
+           ORDER BY tl.tran_date DESC, tl.tran_time DESC, tl.transaction_id DESC
            LIMIT 15"""
     )
 

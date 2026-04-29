@@ -18,7 +18,11 @@
        class="btn btn-primary"
        style="background:linear-gradient(135deg,#14532d,#16a34a);border:none;">+ Deposit</a>
     {% endif %}
+    {% if session.role == 'admin' %}
     <a href="javascript:history.back()" class="btn btn-outline">← Back</a>
+    {% elif holders | length > 1 or session.role == 'customer' %}
+    <a href="{{ url_for('customer_dashboard') }}" class="btn btn-outline">← My Accounts</a>
+    {% endif %}
   </div>
 </div>
 

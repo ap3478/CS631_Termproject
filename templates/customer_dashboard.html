@@ -33,28 +33,36 @@
   </div>
 </div>
 
-<!-- Summary stats -->
+<!-- Summary stats — only show types the customer actually holds -->
 <div class="stat-grid">
+  {% if totals.total_savings %}
   <div class="stat-card green">
     <div class="stat-label">Savings</div>
     <div class="stat-value">{{ totals.total_savings | currency }}</div>
     <div class="stat-sub">Fixed interest accounts</div>
   </div>
+  {% endif %}
+  {% if totals.total_checking %}
   <div class="stat-card">
     <div class="stat-label">Checking</div>
     <div class="stat-value">{{ totals.total_checking | currency }}</div>
     <div class="stat-sub">Day-to-day spending</div>
   </div>
+  {% endif %}
+  {% if totals.total_mm %}
   <div class="stat-card gold">
     <div class="stat-label">Money Market</div>
     <div class="stat-value">{{ totals.total_mm | currency }}</div>
     <div class="stat-sub">Variable rate accounts</div>
   </div>
+  {% endif %}
+  {% if totals.total_loans %}
   <div class="stat-card red">
     <div class="stat-label">Loans</div>
     <div class="stat-value">{{ totals.total_loans | currency }}</div>
     <div class="stat-sub">Outstanding balance</div>
   </div>
+  {% endif %}
 </div>
 
 <!-- Account cards -->
