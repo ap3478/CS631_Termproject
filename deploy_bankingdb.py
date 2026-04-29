@@ -787,6 +787,41 @@ DDL_STATEMENTS = [
          FOR EACH ROW
          EXECUTE FUNCTION prevent_customer_deletion_with_balance()
      """),
+
+    ("Create trigger function: cleanup orphaned Account after last Customer_Account link removed",
+     """
+     CREATE OR REPLACE FUNCTION cleanup_orphaned_account()
+     RETURNS TRIGGER AS $$
+     DECLARE
+         remaining_holders INTEGER;
+         current_balance   NUMERIC(18,2);
+     BEGIN
+         SELECT COUNT(*) INTO remaining_holders
+           FROM Customer_Account
+          WHERE account_no = OLD.account_no;
+
+         IF remaining_holders = 0 THEN
+             SELECT balance INTO current_balance
+               FROM Account
+              WHERE account_no = OLD.account_no;
+
+             IF current_balance IS NOT NULL AND current_balance = 0 THEN
+                 DELETE FROM Account WHERE account_no = OLD.account_no;
+             END IF;
+         END IF;
+
+         RETURN NULL;
+     END;
+     $$ LANGUAGE plpgsql
+     """),
+
+    ("Create trigger: trg_cleanup_orphaned_account on Customer_Account",
+     """
+     CREATE TRIGGER trg_cleanup_orphaned_account
+         AFTER DELETE ON Customer_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION cleanup_orphaned_account()
+     """),
 ]
 
 
