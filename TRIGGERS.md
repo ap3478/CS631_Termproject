@@ -19,6 +19,7 @@ psql -h localhost -p 5433 -U bankadmin bankingdb -f add_loan_balance_protection.
 | `trg_prevent_loan_deletion` | `loan_account` | BEFORE | DELETE | Block if balance > 0 |
 | `trg_prevent_account_deletion` | `account` | BEFORE | DELETE | Block if balance > 0 |
 | `trg_prevent_customer_deletion` | `customer` | BEFORE | DELETE | Block if any linked account has balance > 0 |
+| `trg_prevent_customer_account_deletion` | `customer_account` | BEFORE | DELETE | Block removal of last customer link if account balance > 0 |
 | `trg_cleanup_orphaned_account` | `customer_account` | AFTER | DELETE | Auto-delete account if last holder removed and balance = $0.00 |
 
 ---
@@ -108,7 +109,23 @@ All account balances must be $0.00 before the customer can be removed.
 
 ---
 
-### 7. `trg_cleanup_orphaned_account`
+### 7. `trg_prevent_customer_account_deletion`
+**Table:** `customer_account` &nbsp;|&nbsp; **Timing:** BEFORE DELETE &nbsp;|&nbsp; **Function:** `prevent_customer_account_deletion_with_balance()`
+
+Fires before any row is deleted directly from the `customer_account` junction table. This closes the gap where a user could run `DELETE FROM customer_account WHERE customer_ssn = '...'` and bypass all other balance protection triggers.
+
+The trigger only blocks the deletion if this is the **last customer** linked to that account. If other customers still hold the account (shared account), the link can be removed freely. If this is the last holder and the account balance is greater than $0.00, the deletion is blocked.
+
+**Error example:**
+```
+Cannot remove the last customer link for CHECKING Account #2 —
+outstanding balance of $1850.50.
+The balance must be $0.00 before the account can be unlinked or closed.
+```
+
+---
+
+### 8. `trg_cleanup_orphaned_account`
 **Table:** `customer_account` &nbsp;|&nbsp; **Timing:** AFTER DELETE &nbsp;|&nbsp; **Function:** `cleanup_orphaned_account()`
 
 Fires after a row is deleted from the `customer_account` junction table — either explicitly or as a result of a `customer` row being deleted (which cascades to `customer_account`).
@@ -130,7 +147,8 @@ This prevents ghost accounts from accumulating in the database after customers a
 | `prevent_subtype_deletion_with_balance()` | Triggers 1–4 (all subtype tables share this single function) |
 | `prevent_account_deletion_with_balance()` | Trigger 5 (`account` supertype) |
 | `prevent_customer_deletion_with_balance()` | Trigger 6 (`customer` table) |
-| `cleanup_orphaned_account()` | Trigger 7 (`customer_account` table) |
+| `prevent_customer_account_deletion_with_balance()` | Trigger 7 (`customer_account` — direct unlink protection) |
+| `cleanup_orphaned_account()` | Trigger 8 (`customer_account` — orphan cleanup) |
 
 ---
 

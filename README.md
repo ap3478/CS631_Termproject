@@ -220,7 +220,8 @@ Seven `BEFORE`/`AFTER DELETE` triggers enforce data integrity at the database le
 | `trg_prevent_loan_deletion` | `loan_account` | Block delete if balance > $0.00 |
 | `trg_prevent_account_deletion` | `account` | Block delete of any account type with balance > $0.00 |
 | `trg_prevent_customer_deletion` | `customer` | Block delete if any linked account has balance > $0.00 |
-| `trg_cleanup_orphaned_account` | `customer_account` | Auto-delete account when last customer link is removed and balance = $0.00 |
+| `trg_prevent_customer_account_deletion` | `customer_account` | Block removal of last customer link if account balance > $0.00 |
+| `trg_cleanup_orphaned_account` | `customer_account` | Auto-delete account when last customer link removed and balance = $0.00 |
 
 Triggers are created automatically during `python3 deploy_bankingdb.py`. To apply them to an existing database:
 
@@ -242,7 +243,7 @@ WHERE  trigger_schema = 'public'
 ORDER  BY event_object_table, trigger_name;
 ```
 
-You should see **7 rows** — one for each trigger listed above. For full documentation of each trigger see `TRIGGERS.md`.
+You should see **8 rows** — one for each trigger listed above. For full documentation of each trigger see `TRIGGERS.md`.
 
 ---
 

@@ -822,6 +822,49 @@ DDL_STATEMENTS = [
          FOR EACH ROW
          EXECUTE FUNCTION cleanup_orphaned_account()
      """),
+
+    ("Create trigger function: prevent Customer_Account deletion when last holder and balance > 0",
+     """
+     CREATE OR REPLACE FUNCTION prevent_customer_account_deletion_with_balance()
+     RETURNS TRIGGER AS $$
+     DECLARE
+         current_balance NUMERIC(18,2);
+         acct_type       TEXT;
+         remaining       INTEGER;
+     BEGIN
+         SELECT COUNT(*) INTO remaining
+           FROM Customer_Account
+          WHERE account_no   = OLD.account_no
+            AND customer_ssn != OLD.customer_ssn;
+
+         IF remaining = 0 THEN
+             SELECT balance, account_type::TEXT
+               INTO current_balance, acct_type
+               FROM Account
+              WHERE account_no = OLD.account_no;
+
+             IF current_balance IS NOT NULL AND current_balance > 0 THEN
+                 RAISE EXCEPTION
+                     'Cannot remove the last customer link for % Account #% — '
+                     'outstanding balance of $%. '
+                     'The balance must be $0.00 before the account can be unlinked or closed.',
+                     acct_type, OLD.account_no, current_balance
+                     USING ERRCODE = '23000';
+             END IF;
+         END IF;
+
+         RETURN OLD;
+     END;
+     $$ LANGUAGE plpgsql
+     """),
+
+    ("Create trigger: trg_prevent_customer_account_deletion on Customer_Account",
+     """
+     CREATE TRIGGER trg_prevent_customer_account_deletion
+         BEFORE DELETE ON Customer_Account
+         FOR EACH ROW
+         EXECUTE FUNCTION prevent_customer_account_deletion_with_balance()
+     """),
 ]
 
 
